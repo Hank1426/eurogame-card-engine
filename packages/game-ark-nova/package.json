@@ -1,0 +1,8 @@
+{
+  "name": "@eurogame/game-ark-nova",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": { "@eurogame/content": "workspace:*", "@eurogame/engine-core": "workspace:*", "@eurogame/mechanisms": "workspace:*", "zod": "4.6.7" }
+}

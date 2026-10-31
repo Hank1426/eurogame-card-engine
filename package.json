@@ -1,0 +1,50 @@
+{
+  "name": "eurogame-card-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "engines": { "node": ">=24 <25", "pnpm": ">=10 <11" },
+  "scripts": {
+    "dev": "pnpm --filter @eurogame/web dev",
+    "build": "pnpm content:check && pnpm --filter @eurogame/web build",
+    "preview": "pnpm --filter @eurogame/web preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "content:check": "tsx tools/validate-content.ts",
+    "content:import": "tsx tools/import-ark-source.ts",
+    "ui:capture": "tsx tools/capture-ui.ts",
+    "ui:capture:ark": "tsx tools/capture-ark-ui.ts",
+    "simulate": "tsx apps/simulator/src/cli.ts",
+    "simulate:ark": "tsx tools/simulate-ark.ts",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
+  },
+  "devDependencies": {
+    "@eurogame/content": "workspace:*",
+    "@eurogame/engine-core": "workspace:*",
+    "@eurogame/game-demo": "workspace:*",
+    "@eurogame/game-ark-nova": "workspace:*",
+    "@eurogame/mechanisms": "workspace:*",
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.64.1",
+    "@types/node": "24.10.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "eslint": "10.13.0",
+    "fast-check": "4.10.2",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.1",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  },
+  "dependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zod": "4.6.7"
+  }
+}

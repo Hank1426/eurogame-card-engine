@@ -1,0 +1,14 @@
+node_modules/
+dist/
+references/*
+!references/README.md
+content/private/
+.artifacts/
+playwright-report/
+test-results/
+coverage/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+doc/方舟动物园录屏.gif

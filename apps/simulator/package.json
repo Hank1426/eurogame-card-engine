@@ -1,0 +1,7 @@
+{
+  "name": "@eurogame/simulator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": { "@eurogame/engine-core": "workspace:*", "@eurogame/game-demo": "workspace:*" }
+}

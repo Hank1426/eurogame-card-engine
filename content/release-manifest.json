@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "publicPacks": [{ "path": "content/public/garden-lab.json", "provenance": "original" }],
+  "privateDirectories": ["content/private", "references", "doc"],
+  "notes": "仅 publicPacks 允许进入网页卡牌构建；coverage 仅为工程进度元数据。"
+}

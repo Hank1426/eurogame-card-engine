@@ -1,0 +1,38 @@
+name: Seeded simulation
+
+on:
+  schedule:
+    - cron: '30 18 * * 0-5'
+    - cron: '30 18 * * 6'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  simulate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Run repeatable original-content games
+        env:
+          SEED_COUNT: ${{ github.event.schedule == '30 18 * * 6' && '1000' || '100' }}
+        run: pnpm simulate --seeds "$SEED_COUNT" --max-decisions 1500
+      - name: Verify Ark Nova first-playable games
+        run: pnpm simulate:ark --seeds 20 --max-decisions 1500
+      - name: Keep reproduction files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulation-report
+          path: |
+            .artifacts/simulation/
+            .artifacts/ark-simulation/
+          retention-days: 7

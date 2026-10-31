@@ -1,0 +1,26 @@
+{
+  "description": "六轮双方均经营：每人六次资金 +2、能量 +1；初始资金 5、能量 1；最终 0 分并列。",
+  "seed": 42,
+  "config": { "rounds": 6 },
+  "commands": [
+    { "id": "work-01", "actor": "p1", "revision": 0, "command": { "type": "work" } },
+    { "id": "work-02", "actor": "p2", "revision": 1, "command": { "type": "work" } },
+    { "id": "work-03", "actor": "p1", "revision": 2, "command": { "type": "work" } },
+    { "id": "work-04", "actor": "p2", "revision": 3, "command": { "type": "work" } },
+    { "id": "work-05", "actor": "p1", "revision": 4, "command": { "type": "work" } },
+    { "id": "work-06", "actor": "p2", "revision": 5, "command": { "type": "work" } },
+    { "id": "work-07", "actor": "p1", "revision": 6, "command": { "type": "work" } },
+    { "id": "work-08", "actor": "p2", "revision": 7, "command": { "type": "work" } },
+    { "id": "work-09", "actor": "p1", "revision": 8, "command": { "type": "work" } },
+    { "id": "work-10", "actor": "p2", "revision": 9, "command": { "type": "work" } },
+    { "id": "work-11", "actor": "p1", "revision": 10, "command": { "type": "work" } },
+    { "id": "work-12", "actor": "p2", "revision": 11, "command": { "type": "work" } }
+  ],
+  "expected": {
+    "phase": "finished",
+    "round": 6,
+    "completedTurns": 12,
+    "resources": { "credits": 17, "energy": 7, "points": 0 },
+    "winners": ["p1", "p2"]
+  }
+}

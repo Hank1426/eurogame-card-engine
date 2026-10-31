@@ -1,0 +1,23 @@
+import { ACTION_NAMES, ARK_ACTIONS, ZOO_CARDS, ARK_LIMITATIONS, cardActionTable, animalCapacity } from '@eurogame/game-ark-nova';
+import { SectionHeading } from '@eurogame/ui-kit';
+
+export function ArkRules() {
+  return <article className="rules-page"><section className="rules-intro"><div><span className="eyebrow">HOW TO PLAY / ARK NOVA</span><h1>方舟动物园 · 双人地图 A</h1><p>经营现代动物园，建造饲养区、安置动物、取得赞助，派遣事务员参与保护项目。没有固定轮数；休息由双方行动共同推动。</p><div className="rules-badges"><span className="pill green">双人 AI</span><span className="pill subtle">地图 A</span><span className="pill subtle">限定牌池实验版</span></div></div></section>
+    <section className="panel winning-rule"><span className="winning-symbol">⬟</span><div><span className="eyebrow">THE GOAL</span><h2>让魅力与保护指示物相遇或交叉</h2><p>回合结束时触发，则其他玩家再行动一次；休息期间触发，则双方各再行动一次。终局卡和棕色赞助商效果结算后，按魅力与保护轨道对应的得分区计算总分。同分时，支持保护项目更多者胜。</p></div></section>
+    <section className="panel rules-section"><SectionHeading eyebrow="SETUP" title="起始设置" /><div className="setup-resources"><div><strong>25 ◈</strong><span>每人起始资金</span></div><div><strong>8 → 4</strong><span>起手选牌</span></div><div><strong>2 张</strong><span>秘密终局目标</span></div><div><strong>1 位</strong><span>已解锁事务员</span></div></div><p>动物行动固定在槽位 1，其余四张行动卡随机排序。地图 A 预置一座贩售亭和一座闲置 3 格饲养区。起始魅力分别为 0、1，保护为 0，声望为 1。双方选完手牌后，翻开 6 张展示牌。</p></section>
+    <section className="panel rules-section"><SectionHeading eyebrow="FIVE ACTIONS" title="五张行动卡，位置决定强度" /><p>从槽位 1–5 选择一张行动。执行前可消耗 X 标记，每枚令强度 +1；最多持有 5 枚。行动完成后，该卡移至槽位 1，它左边的卡依次右移。升级保持位置，从下次行动开始使用 II 面。也可不执行卡面行动，改为移动任意行动卡并获得 1 枚 X。</p><div className="rule-action-grid" style={{ marginTop: 20 }}>{ARK_ACTIONS.map(action => <section className="panel rule-action" key={action}><h3>{ACTION_NAMES[action]}</h3><p>{action === 'build' ? '每格支付 2 资金，建筑面积不超过强度。必须邻接已有建筑，不能覆盖水域、岩石和已建格；II 面可覆盖升级限制格，并分步建造不同类型建筑。' :
+      action === 'animals' ? '支付动物费用，检查图标、合作动物园和地形需求，放入足够大的闲置饲养区。动物逐只处理，完成即时效果后才打出下一只；行动完成后效果在行动卡归位后结算。' :
+      action === 'cards' ? '休息进度 +2，按强度抓牌并弃牌；达到精选强度可改拿任意一张展示牌。II 面可从声望范围内抓牌。回合结束才压缩并补满展示区。' :
+      action === 'association' ? '强度 2 提升 2 声望，3 拿合作动物园，4 拿大学，5 支持保护项目。每项任务派遣事务员；同一次休息前重复同类任务需 2 人。II 面可组合不同任务，并额外捐赠。' :
+      '按强度打出赞助商。或推进等于强度的休息格数，并获得等量资金；II 面拿钱翻倍。II 面可打出多张不同赞助商，总等级不超过强度 +1，并允许付展示位费用直接打出。'}</p></section>)}</div></section>
+    <section className="panel rules-section"><SectionHeading eyebrow="ACTION TABLES" title="卡牌与动物行动表" /><table><thead><tr><th>强度</th>{[1, 2, 3, 4, 5].map(value => <th key={value}>{value}</th>)}</tr></thead><tbody>{[false, true].flatMap(upgraded => [
+      <tr key={`draw-${upgraded}`}><td>卡牌 {upgraded ? 'II' : 'I'}：抓 / 弃</td>{[1, 2, 3, 4, 5].map(strength => <td key={strength}>{cardActionTable(strength, upgraded).draw} / {cardActionTable(strength, upgraded).discard}</td>)}</tr>,
+      <tr key={`animals-${upgraded}`}><td>动物 {upgraded ? 'II' : 'I'}：最多安置</td>{[1, 2, 3, 4, 5].map(strength => <td key={strength}>{animalCapacity(strength, upgraded)}</td>)}</tr>
+    ])}</tbody></table><p>卡牌 I 需强度 5 才能精选，卡牌 II 为强度 3。动物 II 在强度至少 5 时先获得 1 声望。</p></section>
+    <div className="rule-detail-grid"><section className="panel rules-section"><SectionHeading eyebrow="BUILD & HOUSE" title="地图、地形与饲养区" /><p>饲养区可旋转和镜像。动物要求的水域、岩石是与整个饲养区相邻的不同地形格。合作动物园使对应大洲图标每个减免 3 资金。先付费用，再领取动物收益，不能预支。</p><p>萌宠只能放入萌宠园，最多三只；每只萌宠按安置后自己的萌宠图标数获得 3 倍魅力。贩售亭之间至少相距 3 格；休息时，按相邻的有效建筑数量获得收入，闲置标准饲养区不计入。</p></section>
+      <section className="panel rules-section"><SectionHeading eyebrow="ASSOCIATION & UPGRADES" title="保护项目、合作与升级" /><p>每张基础保护项目每人只能支持一次，双人封锁格不能使用。支持时从左侧移除一个标记，获得所选边缘奖励；保护点奖励与边缘奖励可以选择先后顺序。</p><p>保护达到 2 时选择升级或解锁工人；声望达到 5、取得第二个合作动物园、第二所大学时获得升级。未升级协会最多拿两个合作动物园；未升级卡牌行动，声望不能超过 9。</p></section></div>
+    <section className="panel rules-section"><SectionHeading eyebrow="BREAK & ENDGAME" title="休息与终局结算" /><ol><li>双人休息进度达到 9，先完成当前回合，触发者获得 1 枚 X。</li><li>双方按手牌上限弃牌，通常为 3，特定大学提升至 5。</li><li>收回事务员，补充合作动物园与大学；弃除展示区前两张，再压缩并补满。</li><li>领取魅力收入、有效贩售亭收入、紫色赞助商和已激活边缘收入；重置休息进度。</li><li>首次有人到达 10 保护时，双方保留一个终局目标；如果直到终局仍未触发，也要在计分前完成选择。</li></ol><p className="rules-note">计分使用官方查表。例如 16 保护对应 +24 分，18 保护对应 +30 分。80 魅力、16 保护的总分为 104。保护点数不按固定倍率换算。</p></section>
+    <section className="panel rules-section"><SectionHeading eyebrow="FIRST PLAYABLE / COVERAGE" title="首版支持范围与差异" /><p>当前牌池：{ZOO_CARDS.filter(card => card.kind === 'animal').length} 张动物、{ZOO_CARDS.filter(card => card.kind === 'sponsor').length} 张赞助商，12 种基础保护项目与 11 张终局目标。未实现能力的牌不入池。上游原始数据中的非有限地形字段也不入池，避免猜测。</p>{ARK_LIMITATIONS.map(limit => <p key={limit}>{limit}</p>)}<p>该版本可完成限定牌池的对局，但仍不等同于完整基础版。</p></section>
+    <div className="rules-bottom"><a className="primary" href="#/ark">返回方舟牌桌</a><a className="secondary" href="#/lobby">创建新对局</a></div>
+  </article>;
+}

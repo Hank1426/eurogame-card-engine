@@ -1,0 +1,13 @@
+{
+  "name": "@eurogame/game-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts", "./ai": "./src/ai.ts" },
+  "dependencies": {
+    "@eurogame/engine-core": "workspace:*",
+    "@eurogame/mechanisms": "workspace:*",
+    "@eurogame/content": "workspace:*",
+    "zod": "4.6.7"
+  }
+}

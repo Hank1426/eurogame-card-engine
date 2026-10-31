@@ -1,0 +1,17 @@
+{
+  "name": "@eurogame/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "dev": "vite --host 127.0.0.1", "build": "vite build", "preview": "vite preview" },
+  "dependencies": {
+    "@eurogame/engine-core": "workspace:*",
+    "@eurogame/mechanisms": "workspace:*",
+    "@eurogame/content": "workspace:*",
+    "@eurogame/game-demo": "workspace:*",
+    "@eurogame/game-ark-nova": "workspace:*",
+    "@eurogame/ui-kit": "workspace:*",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  }
+}

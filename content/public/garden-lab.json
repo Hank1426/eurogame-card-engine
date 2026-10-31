@@ -1,0 +1,91 @@
+{
+  "id": "garden-lab",
+  "version": "1.0.0",
+  "title": "植序工坊",
+  "provenance": "original",
+  "copies": 2,
+  "cards": [
+    {
+      "id": "seed-library", "name": "种子图书馆", "family": "research",
+      "cost": { "credits": 2 }, "description": "选择研究方向，再选择一次收获。用于验证嵌套选择与结算恢复。",
+      "effects": [
+        { "type": "gain", "resource": "points", "amount": 1 },
+        { "type": "choice", "prompt": "选择研究方向", "options": [
+          { "id": "study", "label": "开展研究：抽 2 张牌", "effects": [{ "type": "draw", "count": 2 }] },
+          { "id": "cultivate", "label": "培育种子：能量 +2", "effects": [{ "type": "gain", "resource": "energy", "amount": 2 }] }
+        ] },
+        { "type": "choice", "prompt": "选择研究收获", "options": [
+          { "id": "publish", "label": "发表成果：得分 +2", "effects": [{ "type": "gain", "resource": "points", "amount": 2 }] },
+          { "id": "fund", "label": "取得经费：资金 +3", "effects": [{ "type": "gain", "resource": "credits", "amount": 3 }] }
+        ] }
+      ]
+    },
+    {
+      "id": "rain-garden", "name": "雨水花园", "family": "habitat",
+      "cost": { "credits": 3 }, "description": "得分 +2，能量 +1。每轮结束再获得 1 能量。",
+      "effects": [{ "type": "gain", "resource": "points", "amount": 2 }, { "type": "gain", "resource": "energy", "amount": 1 }, { "type": "registerIncome", "resource": "energy", "amount": 1 }]
+    },
+    {
+      "id": "solar-canopy", "name": "光伏树冠", "family": "infrastructure",
+      "cost": { "credits": 3 }, "description": "每轮结束资金 +2。最后一轮也结算收入。",
+      "effects": [{ "type": "gain", "resource": "points", "amount": 1 }, { "type": "registerIncome", "resource": "credits", "amount": 2 }]
+    },
+    {
+      "id": "wild-meadow", "name": "野生草甸", "family": "habitat",
+      "cost": { "credits": 2 }, "description": "选择保留生境，或立即取得资金。",
+      "effects": [{ "type": "choice", "prompt": "如何经营草甸？", "options": [
+        { "id": "protect", "label": "保留生境：得分 +4", "effects": [{ "type": "gain", "resource": "points", "amount": 4 }] },
+        { "id": "harvest", "label": "采集草种：资金 +5", "effects": [{ "type": "gain", "resource": "credits", "amount": 5 }] }
+      ] }]
+    },
+    {
+      "id": "field-station", "name": "田野观测站", "family": "research",
+      "cost": { "credits": 2 }, "description": "抽 2 张牌，得分 +1。",
+      "effects": [{ "type": "draw", "count": 2 }, { "type": "gain", "resource": "points", "amount": 1 }]
+    },
+    {
+      "id": "orchard", "name": "共享果园", "family": "habitat",
+      "cost": { "credits": 4 }, "description": "得分 +4，每轮结束资金 +1。",
+      "effects": [{ "type": "gain", "resource": "points", "amount": 4 }, { "type": "registerIncome", "resource": "credits", "amount": 1 }]
+    },
+    {
+      "id": "greenhouse", "name": "生态温室", "family": "infrastructure",
+      "cost": { "credits": 3, "energy": 2 }, "description": "转换资源，获得 7 分。",
+      "effects": [{ "type": "gain", "resource": "points", "amount": 7 }]
+    },
+    {
+      "id": "pollinator-path", "name": "传粉走廊", "family": "habitat",
+      "cost": { "credits": 1 }, "description": "能量 +2，得分 +1。",
+      "effects": [{ "type": "sequence", "effects": [{ "type": "gain", "resource": "energy", "amount": 2 }, { "type": "gain", "resource": "points", "amount": 1 }] }]
+    },
+    {
+      "id": "community-lab", "name": "社区实验室", "family": "research",
+      "cost": { "credits": 4 }, "description": "抽 1 张牌，得分 +3，每轮结束能量 +1。",
+      "effects": [{ "type": "draw", "count": 1 }, { "type": "gain", "resource": "points", "amount": 3 }, { "type": "registerIncome", "resource": "energy", "amount": 1 }]
+    },
+    {
+      "id": "compost-loop", "name": "堆肥循环", "family": "infrastructure",
+      "cost": { "credits": 1 }, "description": "资金 +2，能量 +1。",
+      "effects": [{ "type": "gain", "resource": "credits", "amount": 2 }, { "type": "gain", "resource": "energy", "amount": 1 }]
+    },
+    {
+      "id": "forest-reserve", "name": "微型森林", "family": "habitat",
+      "cost": { "credits": 5, "energy": 1 }, "description": "建立长期保护区，得分 +8。",
+      "effects": [{ "type": "gain", "resource": "points", "amount": 8 }]
+    },
+    {
+      "id": "citizen-science", "name": "公民科学", "family": "research",
+      "cost": { "credits": 2 }, "description": "选择一次收获。研究选项还会产生一个后续选择。",
+      "effects": [{ "type": "choice", "prompt": "选择社区计划", "options": [
+        { "id": "survey", "label": "开展调查：抽 1 张牌，然后选择奖励", "effects": [
+          { "type": "draw", "count": 1 },
+          { "type": "choice", "prompt": "选择调查奖励", "options": [
+            { "id": "knowledge", "label": "积累知识：得分 +3", "effects": [{ "type": "gain", "resource": "points", "amount": 3 }] },
+            { "id": "tools", "label": "保留工具：能量 +3", "effects": [{ "type": "gain", "resource": "energy", "amount": 3 }] }
+          ] }
+        ] },
+        { "id": "exhibit", "label": "举办展览：得分 +4", "effects": [{ "type": "gain", "resource": "points", "amount": 4 }] }
+      ] }]
+    }
+  ]
+}

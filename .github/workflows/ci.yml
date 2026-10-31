@@ -1,0 +1,100 @@
+name: Check and publish
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
+        env:
+          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+      - run: pnpm simulate --seeds 20
+      - run: pnpm simulate:ark --seeds 3
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - name: Keep original-content diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            playwright-report/
+            test-results/
+            .artifacts/simulation/
+            .artifacts/ark-simulation/
+          retention-days: 7
+      - name: Keep tested public site
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-site
+          path: apps/web/dist
+          retention-days: 7
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: public-site
+          path: public-site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public-site
+      - name: Publish tested site
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Check deployed HTML and assets
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          node --input-type=module - <<'NODE'
+          const response = await fetch(process.env.PAGE_URL);
+          if (!response.ok) throw new Error(`HTML ${response.status}`);
+          const html = await response.text();
+          const assets = [...html.matchAll(/(?:src|href)="([^"]+\.(?:js|css))"/g)].map(match => match[1]);
+          if (!assets.length) throw new Error('No built assets found');
+          await Promise.all(assets.map(async asset => {
+            const result = await fetch(new URL(asset, process.env.PAGE_URL));
+            if (!result.ok) throw new Error(`${asset}: ${result.status}`);
+          }));
+          console.log('Deployed public site is reachable.');
+          NODE
