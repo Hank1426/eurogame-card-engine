@@ -990,7 +990,7 @@ function associationError(state: ArkState, player: ArkPlayer, command: Extract<A
   if (availableWorkers(player) < workerCost(player, command.task)) return '可用事务员不足；重复相同任务需要 2 人。';
   if (command.task === 'partner') {
     if (player.partners.includes(command.target) || !state.partnerSupply.includes(command.target)) return '此合作动物园当前不可用。';
-    if (player.partners.length >= (upgraded ? 4 : 2)) return '第三与第四个合作动物园需要协会 II。';
+    if (player.partners.length >= (upgraded && player.upgrades.includes('association') ? 4 : 2)) return '第三与第四个合作动物园需要自己的协会 II，且本次行动须使用 II 面。';
   }
   if (command.task === 'university' && (player.universities.includes(command.target) || !state.universitySupply.includes(command.target))) return '此大学当前不可用。';
   if (command.task === 'project') {

@@ -182,4 +182,19 @@ describe('互动动物 · 时序、标记和信息边界', () => {
     }
     throw new Error('未找到正常互动局。');
   });
+  it('催眠对手协会 II 不能绕过自己地图上第三合作动物园的升级条件', () => {
+    let session = prepare('485');
+    const player = session.state.players[0]!;
+    player.partners = ['africa', 'europe'];
+    player.x = 1;
+    session.state.players[1]!.row = ['sponsors', 'association', 'cards', 'animals', 'build'];
+    session.state.players[1]!.upgrades = ['association'];
+    session = resolve(play(session, '485'), ['attack-first']);
+    session = submit(session, { type: 'finish' });
+    session = resolve(session, ['hypnosis-association-1']);
+    expect(session.state.context?.upgraded).toBe(true);
+    expect(session.state.players[0]!.upgrades).not.toContain('association');
+    const error = arkGame.validateCommand(session.state, 'p1', { type: 'association', task: 'partner', target: 'asia', tier: 0, reward: 'money-12', rewardFirst: false });
+    expect(error?.message).toContain('自己的协会 II');
+  });
 });
