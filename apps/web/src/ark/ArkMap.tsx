@@ -1,7 +1,7 @@
 import { hexKey } from '@eurogame/mechanisms';
-import { MAP_A, BUILDING_NAMES, zooCard, type ArkPlayer } from '@eurogame/game-ark-nova';
+import { mapCells, buildingUsedSpace, BUILDING_NAMES, zooCard, type ArkPlayer } from '@eurogame/game-ark-nova';
 
-const rewardSymbols: Record<string, string> = { 'money-5': '5', 'money-10': '10', 'draw-2': '▤ 2', x: 'X', worker: '♟+', snap: '▤', 'reputation-2': '◆2' };
+const rewardSymbols: Record<string, string> = { 'money-5': '5', 'money-10': '10', 'draw-2': '▤ 2', x: 'X', worker: '♟+', snap: '▤', 'reputation-2': '◆2', upgrade: 'II↑' };
 export function mapCenter(q: number, r: number) { return { x: 53 + q * 53, y: 117 + (r + q / 2) * 61.2 }; }
 function hexPoints(q: number, r: number, radius = 33.5) {
   const center = mapCenter(q, r);
@@ -28,18 +28,18 @@ export function ArkMap({ player, draft, valid, onCell, selectedBuilding, onBuild
 }) {
   const occupied = new Map(player.buildings.flatMap(building => building.cells.map(cell => [hexKey(cell), building] as const)));
   const previews = new Set(draft.map(hexKey));
-  return <div className="ark-map-panel"><div className="ark-map-heading"><span>动物园地图 A</span><span>覆盖全部可建造格：+7 魅力</span></div>
-    <svg className="ark-map" viewBox="0 0 530 535" role="group" aria-label={`${player.name} 地图 A`}>
+  return <div className="ark-map-panel"><div className="ark-map-heading"><span>动物园地图 {player.map}</span><span>覆盖全部可建造格：+7 魅力</span></div>
+    <svg className="ark-map" viewBox="0 0 530 535" role="group" aria-label={`${player.name} 地图 ${player.map}`}>
       <defs><pattern id="grass-hatch" width="13" height="13" patternUnits="userSpaceOnUse"><path d="m3 9 2-3 1 3m5-6-1 3" stroke="#96ae62" strokeWidth=".7" opacity=".6" /></pattern></defs>
       <rect x="5" y="30" width="520" height="475" rx="32" fill="#d9e4b8" />
-      {MAP_A.map(cell => {
+      {mapCells(player.map).map(cell => {
         const key = hexKey(cell);
         const building = occupied.get(key);
         const center = mapCenter(cell.q, cell.r);
         const chosen = building?.id === selectedBuilding;
-        const classes = ['ark-hex', cell.terrain, building ? 'built' : '', building?.animals.length ? 'inhabited' : '', building?.kind === 'kiosk' ? 'kiosk' : '', building?.kind === 'pavilion' ? 'pavilion' : '', previews.has(key) ? valid ? 'draft-valid' : 'draft-invalid' : '', chosen ? 'chosen-building' : ''].join(' ');
+        const classes = ['ark-hex', cell.terrain, building ? 'built' : '', building && buildingUsedSpace(building) > 0 ? 'inhabited' : '', building?.kind === 'kiosk' ? 'kiosk' : '', building?.kind === 'pavilion' ? 'pavilion' : '', previews.has(key) ? valid ? 'draft-valid' : 'draft-invalid' : '', chosen ? 'chosen-building' : ''].join(' ');
         const choose = () => { if (building) onBuilding(building.id); else onCell(cell.q, cell.r); };
-        return <g key={key} className={classes}><polygon points={hexPoints(cell.q, cell.r)} tabIndex={0} role="button" aria-label={`地图 A 格 ${cell.q},${cell.r}${building ? ` ${BUILDING_NAMES[building.kind]}` : ` ${cell.terrain === 'land' ? '空地' : cell.terrain === 'water' ? '水域' : '岩石'}`}`} onClick={choose} onKeyDown={event => {
+        return <g key={key} className={classes}><polygon points={hexPoints(cell.q, cell.r)} tabIndex={0} role="button" aria-label={`地图 ${player.map} 格 ${cell.q},${cell.r}${building ? ` ${BUILDING_NAMES[building.kind]}` : ` ${cell.terrain === 'land' ? '空地' : cell.terrain === 'water' ? '水域' : '岩石'}`}`} onClick={choose} onKeyDown={event => {
           if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); choose(); }
         }}><title>{building ? `${BUILDING_NAMES[building.kind]}${building.animals.length ? `：${building.animals.map(id => zooCard(id).name).join('、')}` : ' · 闲置'}` : cell.terrain === 'land' ? `${cell.q},${cell.r}${cell.reward ? ` 放置奖励 ${rewardSymbols[cell.reward]}` : ''}${cell.upgraded ? ' 需要建造 II' : ''}` : cell.terrain}</title></polygon>
           {cell.terrain === 'land' && !building && <polygon points={hexPoints(cell.q, cell.r, 31)} fill="url(#grass-hatch)" className="ark-decor" />}
@@ -54,7 +54,8 @@ export function ArkMap({ player, draft, valid, onCell, selectedBuilding, onBuild
       {player.buildings.map(building => {
         const centers = building.cells.map(cell => mapCenter(cell.q, cell.r));
         const center = { x: centers.reduce((sum, point) => sum + point.x, 0) / centers.length, y: centers.reduce((sum, point) => sum + point.y, 0) / centers.length };
-        const caption = building.kind === 'kiosk' ? '▥' : building.kind === 'pavilion' ? '♧' : building.animals.length ? zooCard(building.animals[0]!).name.slice(0, 5) : `⬡ ${building.cells.length}`;
+        const special = ['petting', 'reptile-house', 'aviary'].includes(building.kind);
+        const caption = special ? `${BUILDING_NAMES[building.kind]} ${buildingUsedSpace(building)}/${building.kind === 'petting' ? 3 : 5}` : building.kind === 'kiosk' ? '▥' : building.kind === 'pavilion' ? '♧' : building.animals.length ? zooCard(building.animals[0]!).name.slice(0, 5) : buildingUsedSpace(building) ? '已占用' : `⬡ ${building.cells.length}`;
         return <g className="ark-decor" key={building.id}><path d={buildingBorder(building.cells)} fill="none" stroke={building.id === selectedBuilding ? '#497577' : building.animals.length ? '#66823d' : '#9a7f48'} strokeWidth={building.id === selectedBuilding ? 3.4 : 2.6} strokeLinejoin="round" /><text x={center.x} y={center.y + 4} textAnchor="middle" className="building-name">{caption}</text></g>;
       })}
     </svg>

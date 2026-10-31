@@ -2,9 +2,10 @@ import { ENGINE_VERSION, fingerprint, shuffle, type Decision, type GameModule, t
 import { hexKey } from '@eurogame/mechanisms';
 import { ARK_ACTIONS, useAction } from './index.js';
 import { ACTION_NAMES, animalCapacity, cardActionTable, initialActionRow, selectAction } from './foundation.js';
-import { BASE_PROJECTS, CARD_IDS, CONTINENTS, FINAL_CARDS, TAG_NAMES, ZOO_CARDS, zooCard } from './cards.js';
-import { appealIncome, buildingCells, BUILDING_NAMES, BUILDING_SHAPES, BUILDING_SUPPLY, MAP_A, kioskIncome, placementError, startingBuildings, victoryScore } from './board.js';
-import { animalCost, arkActor, arkPlayer, availableWorkers, buildCommands, donationCost, finalCardPoints, handLimit, housingError, projectById, projectMetric, PROJECT_REWARDS, PROJECT_REWARD_NAMES, reputationRange, requirementError, strengthFor, tagsOf, UNIVERSITY_NAMES, workerCost } from './rules.js';
+import { BASE_PROJECTS, DECK_PROJECTS, CARD_IDS, CONTINENTS, FINAL_CARDS, TAG_NAMES, ZOO_CARDS, zooCard } from './cards.js';
+import { appealIncome, buildingCells, BUILDING_NAMES, BUILDING_SHAPES, BUILDING_SUPPLY, MAP_A, MAP_0, mapCells, kioskIncome, placementError, startingBuildings, victoryScore } from './board.js';
+import { animalCost, arkActor, arkPlayer, availableWorkers, buildCommands, donationCost, finalCardPoints, handLimit, housingError, projectById, projectMetric, projectRewardsFor, projectRequirementError, freedEnclosures, releaseHousing, buildingUsedSpace, PROJECT_REWARD_NAMES, reputationRange, requirementError, strengthFor, tagsOf, UNIVERSITY_NAMES, workerCost } from './rules.js';
+import { BONUS_TILES, BONUS_NAMES } from './bonuses.js';
 import { arkCommandSchema, arkConfigSchema, type ArkChoice, type ArkChoiceOption, type ArkCommand, type ArkConfig, type ArkEffect, type ArkEvent, type ArkPlayer, type ArkState, type ArkView } from './types.js';
 
 export interface ArkResult {
@@ -91,6 +92,15 @@ function completeAction(state: ArkState, events: ArkEvent[]) {
   const context = state.context;
   if (!context) throw new Error('当前没有待完成行动。');
   const player = arkPlayer(state, state.activePlayer);
+  if (context.repeatRemaining > 0) {
+    context.repeatRemaining = 0;
+    state.context = null;
+    state.stage = 'turn';
+    prepend(state, [item(player.id, { type: 'repeat-action' })]);
+    state.repeatContext = { action: context.action, strength: context.strength - context.spentX, upgraded: context.upgraded, after: context.after };
+    events.push(event('action.repeated', `${player.name} 完成双重行动的第一次，即将按原强度再次执行${ACTION_NAMES[context.action]}。`));
+    return;
+  }
   player.row = useAction(player.row, context.action);
   events.push(event('action.completed', `${player.name} 完成${ACTION_NAMES[context.action]}，行动卡移至槽位 1。`));
   state.context = null;
@@ -126,7 +136,58 @@ function rewardEffects(actor: string, reward: string): QueueItem<ArkEffect>[] {
   if (reward === 'x-3') return [gainItem(actor, 'x', 3)];
   if (reward === 'draw-2') return [item(actor, { type: 'draw', count: 2 })];
   if (reward === 'snap') return [item(actor, { type: 'snap', count: 1, refill: false, range: true })];
+  if (reward === 'worker') return [item(actor, { type: 'worker' })];
   return [];
+}
+function bonusEffects(actor: string, reward: string): QueueItem<ArkEffect>[] {
+  if (reward === 'money-10') return [gainItem(actor, 'money', 10)];
+  if (reward === 'x-3') return [gainItem(actor, 'x', 3)];
+  if (reward === 'reputation-2') return [gainItem(actor, 'reputation', 2)];
+  if (reward === 'free-3') return [item(actor, { type: 'offer-free-build', kind: 'enclosure-3' })];
+  if (reward === 'draw-3') return [item(actor, { type: 'snap', count: 3, refill: false, range: true })];
+  if (reward === 'partner-zoo') return [item(actor, { type: 'offer-partner' })];
+  if (reward === 'university') return [item(actor, { type: 'offer-university' })];
+  if (reward === 'double-token') return [item(actor, { type: 'offer-double' })];
+  if (reward === 'sponsor-money') return [item(actor, { type: 'offer-paid-sponsor' })];
+  throw new Error('未知保护轨道奖励。');
+}
+function takePartner(state: ArkState, player: ArkPlayer, continent: string): QueueItem<ArkEffect>[] {
+  if (!state.partnerSupply.includes(continent) || player.partners.includes(continent) || player.partners.length >= (player.upgrades.includes('association') ? 4 : 2)) throw new Error('合作动物园不可领取。');
+  state.partnerSupply.splice(state.partnerSupply.indexOf(continent), 1);
+  player.partners.push(continent);
+  return player.partners.length === 2 ? [item(player.id, { type: 'upgrade', workerOption: false })] :
+    player.partners.length === 3 ? [item(player.id, { type: 'worker' })] :
+    player.partners.length === 4 ? [gainItem(player.id, 'conservation', 2)] : [];
+}
+function takeUniversity(state: ArkState, player: ArkPlayer, university: string): QueueItem<ArkEffect>[] {
+  if (!state.universitySupply.includes(university) || player.universities.includes(university)) throw new Error('大学不可领取。');
+  state.universitySupply.splice(state.universitySupply.indexOf(university), 1);
+  player.universities.push(university);
+  const effects: QueueItem<ArkEffect>[] = [];
+  if (university !== 'science') effects.push(gainItem(player.id, 'reputation', university === 'hand' ? 1 : 2));
+  if (player.universities.length === 2) effects.push(item(player.id, { type: 'upgrade', workerOption: false }));
+  if (player.universities.length === 3) effects.push(gainItem(player.id, 'conservation', 2));
+  return effects;
+}
+function sponsorEffects(player: ArkPlayer, cardId: string): QueueItem<ArkEffect>[] {
+  const card = zooCard(cardId);
+  const effects: QueueItem<ArkEffect>[] = [];
+  if (card.reputation) effects.push(gainItem(player.id, 'reputation', card.reputation));
+  if (fundingTags[card.id]) effects.push(gainItem(player.id, 'appeal', tagsOf(player)[fundingTags[card.id]!] ?? 0));
+  if (card.id === '203') effects.push(gainItem(player.id, 'money', [0, 2, 5, 10][player.universities.length]!));
+  if (card.id === '209' || card.id === '225') effects.push(gainItem(player.id, 'x', 1));
+  if (card.id === '220') effects.push(gainItem(player.id, 'money', 3));
+  if (card.id === '229') effects.push(gainItem(player.id, 'appeal', projectMetric(player, 'animal-size-2')));
+  if (card.id === '230') effects.push(gainItem(player.id, 'appeal', 2 * projectMetric(player, 'animal-size-4')));
+  if (card.id === '261') effects.push(gainItem(player.id, 'appeal', 1), gainItem(player.id, 'conservation', 1));
+  return effects;
+}
+function actionContext(action: typeof ARK_ACTIONS[number], strength: number, upgraded: boolean, repeatRemaining = 0): NonNullable<ArkState['context']> {
+  return {
+    action, strength, upgraded,
+    remaining: action === 'animals' ? animalCapacity(strength, upgraded) : action === 'cards' ? cardActionTable(strength, upgraded).draw : strength + (action === 'sponsors' && upgraded ? 1 : 0),
+    played: 0, built: [], tasks: [], donated: false, after: [], repeatRemaining, spentX: 0
+  };
 }
 
 function placeBuilding(state: ArkState, player: ArkPlayer, command: Extract<ArkCommand, { type: 'build' }>, free: boolean, events: ArkEvent[]): QueueItem<ArkEffect>[] {
@@ -137,7 +198,7 @@ function placeBuilding(state: ArkState, player: ArkPlayer, command: Extract<ArkC
   const effects: QueueItem<ArkEffect>[] = [];
   if (command.kind === 'pavilion') effects.push(gainItem(player.id, 'appeal', 1));
   for (const cell of cells) {
-    const map = MAP_A.find(candidate => hexKey(candidate) === hexKey(cell))!;
+    const map = mapCells(player.map).find(candidate => hexKey(candidate) === hexKey(cell))!;
     if (!map.reward || player.coveredRewards.includes(hexKey(cell))) continue;
     player.coveredRewards.push(hexKey(cell));
     const reward = map.reward;
@@ -146,14 +207,16 @@ function placeBuilding(state: ArkState, player: ArkPlayer, command: Extract<ArkC
     else if (reward === 'worker') effects.push(item(player.id, { type: 'worker' }));
     else if (reward === 'reputation-2') effects.push(gainItem(player.id, 'reputation', 2));
     else if (reward === 'draw-2') effects.push(item(player.id, { type: 'draw', count: 2 }));
+    else if (reward === 'upgrade') effects.push(item(player.id, { type: 'upgrade', workerOption: false }));
     else effects.push(item(player.id, { type: 'snap', count: 1, refill: false, range: true }));
   }
   const occupied = new Set(player.buildings.flatMap(building => building.cells).map(hexKey));
-  if (!player.mapCompleted && MAP_A.filter(cell => cell.terrain === 'land').every(cell => occupied.has(hexKey(cell)))) {
+  if (!player.mapCompleted && mapCells(player.map).filter(cell => cell.terrain === 'land').every(cell => occupied.has(hexKey(cell)))) {
     player.mapCompleted = true;
     effects.push(gainItem(player.id, 'appeal', 7));
   }
   events.push(event('building.placed', `${player.name} ${free ? '免费' : `支付 ${cells.length * 2} 资金，`}建造${BUILDING_NAMES[command.kind]}。`));
+  if (command.kind === 'aviary' || command.kind === 'reptile-house') effects.push(item(player.id, { type: 'offer-transfer', building: `building-${state.buildingSequence}` }));
   return effects;
 }
 
@@ -255,7 +318,7 @@ function resolveEffect(state: ArkState, actor: string, effect: ArkEffect, events
         player.finals.map(id => option(id, FINAL_CARDS.find(card => card.id === id)!.name, [], id)), 1, 1, 'final');
       break;
     case 'continue':
-      if (state.context && (state.context.remaining <= 0 || (!state.context.upgraded && state.context.action !== 'animals' && state.context.action !== 'cards'))) completeAction(state, events);
+      if (state.context && (state.context.remaining <= 0 || (!state.context.upgraded && state.context.action !== 'animals' && state.context.action !== 'cards' && state.context.action !== 'association'))) completeAction(state, events);
       break;
     case 'end-turn': {
       refill(state);
@@ -281,7 +344,7 @@ function resolveEffect(state: ArkState, actor: string, effect: ArkEffect, events
       break;
     }
     case 'break-income': {
-      for (const candidate of state.players) candidate.usedWorkers = {};
+      for (const candidate of state.players) { candidate.usedWorkers = {}; candidate.doubleTokens = []; }
       state.partnerSupply = CONTINENTS.filter(continent => !state.players.every(candidate => candidate.partners.includes(continent)));
       state.universitySupply = Object.keys(UNIVERSITY_NAMES).filter(university => !state.players.every(candidate => candidate.universities.includes(university)));
       for (const card of state.market.slice(0, 2)) if (card) state.discard.push(card);
@@ -313,16 +376,110 @@ function resolveEffect(state: ArkState, actor: string, effect: ArkEffect, events
       nextTurn(state, events);
       break;
     case 'milestone': {
-      const rewards = effect.point === 5
-        ? [{ id: 'money-10', label: '取得共享奖励：10 资金', effects: [gainItem(actor, 'money', 10)] }, { id: 'x-3', label: '取得共享奖励：3 枚 X', effects: [gainItem(actor, 'x', 3)] }]
-        : [{ id: 'draw-3', label: '取得共享奖励：拿取 3 张牌', effects: [item(actor, { type: 'snap', count: 3, refill: false, range: true })] }, { id: 'reputation-2', label: '取得共享奖励：2 声望', effects: [gainItem(actor, 'reputation', 2)] }];
+      const rewards = state.bonusTiles.filter(tile => tile.point === effect.point && !tile.claimedBy);
       const options = [option('money-5', '获得 5 资金（始终可选）', [gainItem(actor, 'money', 5)]),
-        ...rewards.filter(reward => !state.claimedMilestones.includes(`${effect.point}-${reward.id}`)).map(reward => option(
-          `${effect.point}-${reward.id}`, reward.label, reward.effects
+        ...rewards.map(tile => option(
+          `${effect.point}-${tile.reward}`, `取得共享奖励：${BONUS_NAMES[tile.reward]}`, bonusEffects(actor, tile.reward)
         ))];
-      makeChoice(state, actor, `保护轨道 ${effect.point} 点奖励 · 固定教学配置`, options);
+      makeChoice(state, actor, `保护轨道 ${effect.point} 点奖励 · 本局随机配置`, options);
       break;
     }
+    case 'offer-transfer': {
+      const building = player.buildings.find(building => building.id === effect.building);
+      if (!building) throw new Error('新建特殊馆不存在。');
+      const options = player.animals.flatMap(animal => {
+        const source = player.buildings.find(candidate => candidate.animals.includes(animal));
+        if ((source && !source.kind.startsWith('enclosure')) || housingError(building, animal, player.map)) return [];
+        return freedEnclosures(player, animal).map(freed => option(
+          `transfer-${animal}-${freed.id}`, `转移${zooCard(animal).name} · 释放 ${BUILDING_NAMES[freed.kind]}（${freed.id}）`,
+          [item(actor, { type: 'transfer', building: building.id, animal, freed: freed.id }), item(actor, effect)]
+        ));
+      });
+      makeChoice(state, actor, `建成${BUILDING_NAMES[building.kind]}：仅此一次，可逐只转移动物；不转移则结束`, options, 0, 1);
+      break;
+    }
+    case 'transfer': {
+      const building = player.buildings.find(candidate => candidate.id === effect.building)!;
+      const error = housingError(building, effect.animal, player.map);
+      if (error) throw new Error(error);
+      releaseHousing(player, effect.animal, effect.freed, true);
+      building.occupancy = buildingUsedSpace(building) + (zooCard(effect.animal).specialHousing?.space ?? 0);
+      building.animals.push(effect.animal);
+      events.push(event('animal.transferred', `${player.name} 将${zooCard(effect.animal).name}转入${BUILDING_NAMES[building.kind]}，原最小符合条件饲养区恢复闲置。`));
+      break;
+    }
+    case 'offer-partner':
+      makeChoice(state, actor, '领取一个可用合作动物园（不消耗事务员）',
+        player.partners.length >= (player.upgrades.includes('association') ? 4 : 2) ? [] :
+          state.partnerSupply.filter(continent => !player.partners.includes(continent)).map(continent => option(continent, `${TAG_NAMES[continent]}合作动物园`, [item(actor, { type: 'take-partner', continent })])));
+      break;
+    case 'offer-university':
+      makeChoice(state, actor, '领取一个可用大学（不消耗事务员）',
+        state.universitySupply.filter(university => !player.universities.includes(university)).map(university => option(university, UNIVERSITY_NAMES[university]!, [item(actor, { type: 'take-university', university })])));
+      break;
+    case 'take-partner': prepend(state, takePartner(state, player, effect.continent)); break;
+    case 'take-university': prepend(state, takeUniversity(state, player, effect.university)); break;
+    case 'offer-double':
+      makeChoice(state, actor, '在一张行动卡上放置双重标记',
+        ARK_ACTIONS.map(action => option(action, `双重：${ACTION_NAMES[action]}`, [item(actor, { type: 'set-double', action })])));
+      break;
+    case 'set-double': player.doubleTokens.push(effect.action); break;
+    case 'offer-pavilions': {
+      const commands = buildCommands(state, { ...player, money: Math.max(player.money, 2) }, 1, player.upgrades.includes('build'), [], Infinity).filter(command => command.kind === 'kiosk' || command.kind === 'pavilion');
+      makeChoice(state, actor, `姿态：还可免费放置 ${effect.count} 个贩售亭或休憩亭，也可结束`,
+        commands.map((command, index) => option(`posture-${index}`, `${BUILDING_NAMES[command.kind]} · ${command.q},${command.r}`, [
+          item(actor, { type: 'place-free-build', command }),
+          ...(effect.count > 1 ? [item(actor, { ...effect, count: effect.count - 1 })] : [])
+        ])), 0, 1);
+      break;
+    }
+    case 'offer-paid-sponsor':
+      makeChoice(state, actor, '可支付与卡牌等级相同的资金，打出一张手牌赞助商',
+        player.hand.filter(id => zooCard(id).kind === 'sponsor' && zooCard(id).strength <= player.money && !requirementError(player, id)).map(id =>
+          option(id, `${zooCard(id).name} · 支付 ${zooCard(id).strength} 资金`, [item(actor, { type: 'play-paid-sponsor', card: id })], id)), 0, 1);
+      break;
+    case 'play-paid-sponsor': {
+      const card = zooCard(effect.card);
+      if (!player.hand.includes(card.id) || card.kind !== 'sponsor' || player.money < card.strength || requirementError(player, card.id)) throw new Error('无法支付或不满足赞助商条件。');
+      player.money -= card.strength;
+      removeCard(state, player, card.id, 'hand');
+      player.sponsors.push(card.id);
+      triggerExperts(state, card.id, events);
+      prepend(state, sponsorEffects(player, card.id));
+      events.push(event('sponsor.bonus', `${player.name} 用奖励支付 ${card.strength} 资金打出${card.name}，不移动赞助商行动卡。`));
+      break;
+    }
+    case 'repeat-action': {
+      const repeat = state.repeatContext!;
+      state.repeatContext = null;
+      state.context = actionContext(repeat.action, repeat.strength, repeat.upgraded);
+      state.context.after = repeat.after;
+      state.stage = 'action';
+      const options: ArkChoiceOption[] = [];
+      for (let spendX = 0; spendX <= player.x; spendX += 1) {
+        const candidate = actionContext(repeat.action, repeat.strength + spendX, repeat.upgraded);
+        state.context = candidate;
+        candidate.after = repeat.after;
+        if (arkGame.getDecision(state, actor)?.options.length) options.push(option(`repeat-${spendX}`,
+          `再次执行 · 强度 ${repeat.strength + spendX}${spendX ? ` · 另消耗 ${spendX} 枚 X` : ''}`, [item(actor, { type: 'start-repeat', spendX })]));
+      }
+      state.context = actionContext(repeat.action, repeat.strength, repeat.upgraded);
+      state.context.after = repeat.after;
+      makeChoice(state, actor, `双重：再次执行${ACTION_NAMES[repeat.action]}（基础强度 ${repeat.strength}），X 需另行消耗`,
+        [...options, option('skip', '放弃第二次行动', [item(actor, { type: 'end-repeat' })])]);
+      break;
+    }
+    case 'start-repeat':
+      if (!state.context || effect.spendX > player.x) throw new Error('第二次行动的 X 不足。');
+      player.x -= effect.spendX;
+      {
+        const context = state.context;
+        state.context = { ...actionContext(context.action, context.strength + effect.spendX, context.upgraded), after: context.after };
+      }
+      if (state.context?.action === 'cards') state.breakProgress = Math.min(9, state.breakProgress + 2);
+      if (state.context?.action === 'animals' && state.context.upgraded && state.context.strength >= 5) prepend(state, [gainItem(actor, 'reputation', 1)]);
+      break;
+    case 'end-repeat': completeAction(state, events); break;
     case 'offer-free-build': {
       const commands = buildCommands(state, { ...player, money: Math.max(10, player.money) }, BUILDING_SHAPES[effect.kind].length, player.upgrades.includes('build'), [], Infinity).filter(command => command.kind === effect.kind);
       makeChoice(state, actor, `免费建造${BUILDING_NAMES[effect.kind]}：选择一个合法位置，或跳过`,
@@ -337,6 +494,8 @@ function resolveEffect(state: ArkState, actor: string, effect: ArkEffect, events
         let points = candidate.finals.reduce((total, id) => total + finalCardPoints(state, candidate, id), 0);
         if (CONTINENTS.every(tag => (tagsOf(candidate)[tag] ?? 0) > 0)) points += Number(candidate.sponsors.includes('225')) + Number(candidate.sponsors.includes('226'));
         if (candidate.sponsors.includes('261') && ANIMAL_TAG_COUNT(candidate) >= 5) points += 1;
+        if (candidate.universities.length === 3) points += Number(candidate.sponsors.includes('203')) + Number(candidate.sponsors.includes('209'));
+        if (candidate.reputation >= 9 && candidate.sponsors.includes('220')) points += 1;
         return { candidate, points };
       });
       for (const { candidate, points } of totals) {
@@ -367,7 +526,7 @@ function animalCommands(state: ArkState, player: ArkPlayer, marketAllowed: boole
     const cards = source === 'hand' ? player.hand : state.market.slice(0, reputationRange(player.reputation)).filter(card => card !== null);
     for (const id of cards) {
       if (zooCard(id).kind !== 'animal' || requirementError(player, id) || player.money < animalCost(state, player, id, source)) continue;
-      for (const building of player.buildings) if (!housingError(building, id)) result.push({ type: 'animal', card: id, source, building: building.id });
+      for (const building of player.buildings) if (!housingError(building, id, player.map)) result.push({ type: 'animal', card: id, source, building: building.id });
     }
   }
   return result;
@@ -375,6 +534,7 @@ function animalCommands(state: ArkState, player: ArkPlayer, marketAllowed: boole
 function associationError(state: ArkState, player: ArkPlayer, command: Extract<ArkCommand, { type: 'association' }>, remaining: number, upgraded: boolean, tasks: string[]): string | null {
   const cost = command.task === 'reputation' ? 2 : command.task === 'partner' ? 3 : command.task === 'university' ? 4 : player.sponsors.includes('203') ? 4 : 5;
   if (cost > remaining) return `此协会任务需要强度 ${cost}。`;
+  if (!upgraded && tasks.length) return '协会 I 每次只能执行一项任务。';
   if (tasks.includes(command.task)) return '同一次协会行动不能重复相同任务。';
   if (availableWorkers(player) < workerCost(player, command.task)) return '可用事务员不足；重复相同任务需要 2 人。';
   if (command.task === 'partner') {
@@ -383,12 +543,26 @@ function associationError(state: ArkState, player: ArkPlayer, command: Extract<A
   }
   if (command.task === 'university' && (player.universities.includes(command.target) || !state.universitySupply.includes(command.target))) return '此大学当前不可用。';
   if (command.task === 'project') {
-    const project = state.projects.find(candidate => candidate.id === command.target);
-    if (!project) return '此基础保护项目不在本局中。';
+    const source = command.source ?? 'board';
+    const base = state.projects.find(candidate => candidate.id === command.target);
+    const active = state.activeProjects.find(candidate => candidate.id === command.target);
+    const spec = DECK_PROJECTS.find(project => project.id === command.target);
+    if (source !== 'board') {
+      if (!spec || !(source === 'hand' ? player.hand : state.market).includes(command.target)) return '保护项目不在指定牌区。';
+      if (base || active) return '此项目已经在场上。';
+      if (source === 'market') {
+        const index = state.market.indexOf(command.target);
+        if (!upgraded || index >= reputationRange(player.reputation)) return '从展示区打出项目需要协会 II 和声望范围。';
+        if (player.money < index + 1) return '不足以支付展示位费用。';
+      }
+    }
+    const project = base ?? active ?? (source !== 'board' && spec ? { id: spec.id, blocked: -1, claimed: [null, null, null] } : null);
+    if (!project) return '此保护项目不在本局场上。';
     if (project.claimed.includes(player.id)) return '每个基础保护项目每人仅能支持一次。';
     if (project.blocked === command.tier || project.claimed[command.tier]) return '此项目等级已被封锁或占用。';
-    if (projectMetric(player, projectById(project.id).tag) < projectById(project.id).thresholds[command.tier]!) return '尚未满足此项目的图标条件。';
-    if (!PROJECT_REWARDS.includes(command.reward as typeof PROJECT_REWARDS[number]) || player.projectRewards.includes(command.reward)) return '左侧边缘奖励已经使用或不存在。';
+    const requirement = projectRequirementError(player, project.id, command.tier, command.releaseAnimal);
+    if (requirement) return requirement;
+    if (!projectRewardsFor(player).includes(command.reward) || player.projectRewards.includes(command.reward)) return '左侧边缘奖励已经使用或不存在。';
   }
   return null;
 }
@@ -398,8 +572,17 @@ function associationCommands(state: ArkState, player: ArkPlayer, remaining: numb
     ...state.partnerSupply.map(target => ({ type: 'association' as const, task: 'partner' as const, target, tier: 0, reward: 'money-12', rewardFirst: false })),
     ...state.universitySupply.map(target => ({ type: 'association' as const, task: 'university' as const, target, tier: 0, reward: 'money-12', rewardFirst: false }))
   ];
-  for (const project of state.projects) for (const tier of [0, 1, 2]) {
-    for (const reward of PROJECT_REWARDS) commands.push({ type: 'association', task: 'project', target: project.id, tier, reward, rewardFirst: false });
+  const projects = [
+    ...[...state.projects, ...state.activeProjects].map(project => ({ id: project.id, source: 'board' as const })),
+    ...player.hand.filter(id => zooCard(id).kind === 'project').map(id => ({ id, source: 'hand' as const })),
+    ...(upgraded ? state.market.filter(id => id && zooCard(id).kind === 'project').map(id => ({ id: id!, source: 'market' as const })) : [])
+  ];
+  for (const project of projects) for (const tier of [0, 1, 2]) {
+    const spec = DECK_PROJECTS.find(candidate => candidate.id === project.id);
+    const animals = spec?.mode === 'release' ? player.animals.filter(id => !projectRequirementError(player, project.id, tier, id)) : [''];
+    for (const animal of animals) for (const reward of projectRewardsFor(player)) {
+      commands.push({ type: 'association', task: 'project', target: project.id, source: project.source, tier, reward, rewardFirst: false, releaseAnimal: animal });
+    }
   }
   return commands.filter(command => !associationError(state, player, command, remaining, upgraded, tasks));
 }
@@ -419,8 +602,12 @@ export function validateArkCommand(state: ArkState, actor: string, command: ArkC
   if (command.type === 'resolve') return ruleError('当前没有待处理选择。');
   if (command.type === 'begin' || command.type === 'take-x') {
     if (context || state.stage !== 'turn') return ruleError('先完成当前行动。');
-    if (command.type === 'take-x') return player.x >= 5 ? ruleError('X 标记最多 5 枚。') : null;
+    if (command.type === 'take-x') {
+      if (command.useDouble && !player.doubleTokens.includes(command.action)) return ruleError('该行动卡上没有双重标记。');
+      return player.x >= 5 ? ruleError('X 标记最多 5 枚。') : null;
+    }
     if (command.spendX > player.x) return ruleError('X 标记不足。');
+    if (command.useDouble && !player.doubleTokens.includes(command.action)) return ruleError('该行动卡上没有双重标记。');
     const strength = strengthFor(player, command.action, command.spendX);
     const upgraded = player.upgrades.includes(command.action);
     const prospectivePlayer = command.action === 'animals' && upgraded && strength >= 5
@@ -440,7 +627,7 @@ export function validateArkCommand(state: ArkState, actor: string, command: ArkC
     if (size > context.remaining || (context.upgraded && context.built.includes(command.kind))) return ruleError('剩余强度不足或已经建过相同类型。');
     if (player.money < size * 2) return ruleError(`建造需要 ${size * 2} 资金。`);
     if (state.players.flatMap(candidate => candidate.buildings).filter(building => building.kind === command.kind).length >= BUILDING_SUPPLY[command.kind]) return ruleError('建筑供应已耗尽。');
-    const error = placementError(player.buildings, command.kind, buildingCells(command.kind, command, command.rotation, command.flip), context.upgraded);
+    const error = placementError(player.buildings, command.kind, buildingCells(command.kind, command, command.rotation, command.flip), context.upgraded, player.map);
     return error ? ruleError(error) : null;
   }
   if (command.type === 'draw') {
@@ -468,7 +655,7 @@ export function validateArkCommand(state: ArkState, actor: string, command: ArkC
       if (player.money < animalCost(state, player, card.id, command.source)) return ruleError('安置费用不足，不能预支卡牌奖励。');
       const building = player.buildings.find(candidate => candidate.id === command.building);
       if (!building) return ruleError('请选择饲养区。');
-      const housing = housingError(building, card.id);
+      const housing = housingError(building, card.id, player.map);
       return housing ? ruleError(housing) : null;
     }
     if (card.strength > context.remaining) return ruleError('赞助商等级超过剩余强度。');
@@ -541,22 +728,29 @@ function performCommand(state: ArkState, actor: string, command: ArkCommand): Ar
       player.finals = [...command.options];
     }
     for (const selectedOption of selected) if (/^[58]-/.test(selectedOption.id)) state.claimedMilestones.push(selectedOption.id);
+    for (const selectedOption of selected) if (/^[58]-/.test(selectedOption.id)) {
+      const tile = state.bonusTiles.find(tile => `${tile.point}-${tile.reward}` === selectedOption.id);
+      if (!tile || tile.claimedBy) throw new Error('该奖励板块已被拿取。');
+      tile.claimedBy = actor;
+    }
     prepend(state, selected.flatMap(option => option.effects));
     events.push(event('choice.completed', `${player.name} 完成「${choice.prompt}」。`));
   } else if (command.type === 'take-x') {
     const action = selectAction(player.row, command.action, player.x, 0, true);
     player.row = action.row; player.x = action.tokens;
-    events.push(event('action.x', `${player.name} 选择${ACTION_NAMES[command.action]}替代行动，获得 1 枚 X。`));
+    if (command.useDouble) {
+      player.doubleTokens.splice(player.doubleTokens.indexOf(command.action), 1);
+      player.x = Math.min(5, player.x + 1);
+    }
+    events.push(event('action.x', `${player.name} 选择${ACTION_NAMES[command.action]}替代行动，获得${command.useDouble ? '最多 2' : ' 1'} 枚 X。`));
     prepend(state, [item(actor, { type: 'end-turn' })]);
   } else if (command.type === 'begin') {
     const strength = strengthFor(player, command.action, command.spendX);
     player.x -= command.spendX;
     const upgraded = player.upgrades.includes(command.action);
-    state.context = {
-      action: command.action, strength, upgraded,
-      remaining: command.action === 'animals' ? animalCapacity(strength, upgraded) : command.action === 'cards' ? cardActionTable(strength, upgraded).draw : strength + (command.action === 'sponsors' && upgraded ? 1 : 0),
-      played: 0, built: [], tasks: [], donated: false, after: []
-    };
+    if (command.useDouble) player.doubleTokens.splice(player.doubleTokens.indexOf(command.action), 1);
+    state.context = actionContext(command.action, strength, upgraded, command.useDouble ? 1 : 0);
+    state.context.spentX = command.spendX;
     state.stage = 'action';
     events.push(event('action.started', `${player.name} 执行${ACTION_NAMES[command.action]} ${upgraded ? 'II' : 'I'}，强度 ${strength}${command.spendX ? `，消耗 ${command.spendX} 枚 X` : ''}。`));
     if (command.action === 'cards') state.breakProgress = Math.min(9, state.breakProgress + 2);
@@ -593,17 +787,18 @@ function performCommand(state: ArkState, actor: string, command: ArkCommand): Ar
       const cost = command.type === 'animal' ? animalCost(state, player, card.id, command.source) : command.source === 'market' ? state.market.indexOf(card.id) + 1 : 0;
       player.money -= cost;
       removeCard(state, player, card.id, command.source);
-      let effects: QueueItem<ArkEffect>[] = [];
+      let effects: QueueItem<ArkEffect>[];
       if (command.type === 'animal') {
         player.animals.push(card.id);
-        player.buildings.find(building => building.id === command.building)!.animals.push(card.id);
+        const building = player.buildings.find(building => building.id === command.building)!;
+        building.occupancy = building.kind.startsWith('enclosure') ? 1 : buildingUsedSpace(building) + (building.kind === 'petting' ? 1 : card.specialHousing!.space);
+        building.animals.push(card.id);
         context.remaining -= 1;
         effects = animalEffects(state, player, card.id);
       } else {
         player.sponsors.push(card.id);
         context.remaining -= card.strength;
-        if (card.reputation) effects.push(gainItem(actor, 'reputation', card.reputation));
-        if (fundingTags[card.id]) effects.push(gainItem(actor, 'appeal', tagsOf(player)[fundingTags[card.id]!] ?? 0));
+        effects = sponsorEffects(player, card.id);
       }
       context.played += 1;
       triggerExperts(state, card.id, events);
@@ -613,25 +808,44 @@ function performCommand(state: ArkState, actor: string, command: ArkCommand): Ar
       const cost = command.task === 'reputation' ? 2 : command.task === 'partner' ? 3 : command.task === 'university' ? 4 : player.sponsors.includes('203') ? 4 : 5;
       player.usedWorkers[command.task] = (player.usedWorkers[command.task] ?? 0) + workerCost(player, command.task);
       context.remaining -= cost; context.played += 1; context.tasks.push(command.task);
+      if (!context.upgraded) context.remaining = 0;
       const effects: QueueItem<ArkEffect>[] = [];
       if (command.task === 'reputation') effects.push(gainItem(actor, 'reputation', 2));
       else if (command.task === 'partner') {
-        state.partnerSupply.splice(state.partnerSupply.indexOf(command.target), 1);
-        player.partners.push(command.target);
-        if (player.partners.length === 2) effects.push(item(actor, { type: 'upgrade', workerOption: false }));
-        else if (player.partners.length === 3) effects.push(item(actor, { type: 'worker' }));
-        else if (player.partners.length === 4) effects.push(gainItem(actor, 'conservation', 2));
+        effects.push(...takePartner(state, player, command.target));
       } else if (command.task === 'university') {
-        state.universitySupply.splice(state.universitySupply.indexOf(command.target), 1);
-        player.universities.push(command.target);
-        if (command.target !== 'science') effects.push(gainItem(actor, 'reputation', command.target === 'hand' ? 1 : 2));
-        if (player.universities.length === 2) effects.push(item(actor, { type: 'upgrade', workerOption: false }));
-        if (player.universities.length === 3) effects.push(gainItem(actor, 'conservation', 2));
+        effects.push(...takeUniversity(state, player, command.target));
       } else {
-        const project = state.projects.find(candidate => candidate.id === command.target)!;
+        const source = command.source ?? 'board';
+        const spec = DECK_PROJECTS.find(project => project.id === command.target);
+        if (source !== 'board') {
+          if (source === 'market') player.money -= state.market.indexOf(command.target) + 1;
+          removeCard(state, player, command.target, source);
+          state.activeProjects.unshift({ id: command.target, blocked: -1, claimed: [null, null, null] });
+          if (state.activeProjects.length > 2) {
+            const displaced = state.activeProjects.pop()!;
+            state.discard.push(displaced.id);
+            events.push(event('project.displaced', `新增项目将${projectById(displaced.id).name}推出场外，标记返回各自供应区。`));
+          }
+          if (spec?.playReputation) effects.push(gainItem(actor, 'reputation', spec.playReputation));
+        }
+        const project = [...state.projects, ...state.activeProjects].find(candidate => candidate.id === command.target)!;
         project.claimed[command.tier] = actor;
         player.projectRewards.push(command.reward);
+        player.supportedProjects.push(command.target);
+        if (spec?.mode === 'release') {
+          const animal = command.releaseAnimal!;
+          releaseHousing(player, animal);
+          player.animals.splice(player.animals.indexOf(animal), 1);
+          state.discard.push(animal);
+          const buried = player.buried.filter(card => card.host === animal);
+          state.discard.push(...buried.map(card => card.card));
+          player.buried = player.buried.filter(card => card.host !== animal);
+          player.appeal = Math.max(0, player.appeal - zooCard(animal).appeal);
+          events.push(event('animal.released', `${player.name} 放归${zooCard(animal).name}，回退 ${zooCard(animal).appeal} 魅力；保留保护与声望。`));
+        }
         const projectEffects = [gainItem(actor, 'conservation', projectById(project.id).points[command.tier]!)];
+        if (spec?.reputation[command.tier]) projectEffects.push(gainItem(actor, 'reputation', spec.reputation[command.tier]!));
         const reward = rewardEffects(actor, command.reward);
         effects.push(...(command.rewardFirst ? [...reward, ...projectEffects] : [...projectEffects, ...reward]));
       }
@@ -650,35 +864,36 @@ function performCommand(state: ArkState, actor: string, command: ArkCommand): Ar
 
 export const arkGame: GameModule<ArkState, ArkConfig, ArkCommand, ArkView, ArkResult> = {
   manifest: {
-    gameId: 'ark-nova', engineVersion: ENGINE_VERSION, rulesVersion: 'base-v2-first-playable-1',
-    contentVersion: `first-playable-1+${fingerprint({ cards: ZOO_CARDS, projects: BASE_PROJECTS, finals: FINAL_CARDS, map: MAP_A })}`
+    gameId: 'ark-nova', engineVersion: ENGINE_VERSION, rulesVersion: 'base-v2-stage-three-1',
+    contentVersion: `stage-three-1+${fingerprint({ cards: ZOO_CARDS, projects: [...BASE_PROJECTS, ...DECK_PROJECTS], finals: FINAL_CARDS, maps: [MAP_A, MAP_0], bonuses: BONUS_TILES, shapes: BUILDING_SHAPES })}`
   },
   parseConfig: input => arkConfigSchema.parse(input),
   parseCommand: input => arkCommandSchema.parse(input),
   createGame(config, seed) {
-    void config;
     let rng = seed;
     const deck = shuffle(CARD_IDS, rng); rng = deck.rng;
     const finals = shuffle(FINAL_CARDS.map(card => card.id), rng); rng = finals.rng;
     const projects = shuffle(BASE_PROJECTS.map(project => project.id), rng); rng = projects.rng;
+    const bonuses = shuffle(BONUS_TILES, rng); rng = bonuses.rng;
     const players: ArkPlayer[] = [];
     for (let index = 0; index < 2; index += 1) {
       const actions = initialActionRow(rng); rng = actions.rng;
       players.push({
-        id: `p${index + 1}`, name: index === 0 ? '你的动物园' : '林野动物园 AI',
+        id: `p${index + 1}`, name: index === 0 ? '你的动物园' : '林野动物园 AI', map: config.map,
         money: 25, appeal: index, conservation: 0, reputation: 1, x: 0,
         row: actions.row, upgrades: [], hand: deck.values.splice(0, 8), finals: finals.values.splice(0, 2),
-        animals: [], sponsors: [], buried: [], buildings: startingBuildings(), partners: [], universities: [],
-        workers: 1, usedWorkers: {}, projectRewards: [], coveredRewards: [], mapCompleted: false
+        animals: [], sponsors: [], buried: [], buildings: startingBuildings(config.map), partners: [], universities: [],
+        workers: 1, usedWorkers: {}, projectRewards: [], coveredRewards: [], mapCompleted: false, doubleTokens: [], supportedProjects: []
       });
     }
     const state: ArkState = {
       revision: 0, rng, phase: 'playing', stage: 'setup', activePlayer: 'p1', players,
       deck: deck.values, discard: [], revealed: [], market: Array.from({ length: 6 }, () => null),
       finalDeck: finals.values, finalDiscard: [], projects: projects.values.slice(0, 3).map((id, index) => ({ id, blocked: index, claimed: [null, null, null] })),
+      activeProjects: [], bonusTiles: bonuses.values.slice(0, 4).map((reward, index) => ({ point: index < 2 ? 5 : 8, reward, claimedBy: null })),
       partnerSupply: [...CONTINENTS], universitySupply: Object.keys(UNIVERSITY_NAMES), donations: 0,
       breakProgress: 0, breaks: 0, turns: 0, finalReduced: false, finalTurns: null, endingTrigger: null,
-      context: null, queue: [item('p1', { type: 'setup' }), item('p2', { type: 'setup' }), item('p1', { type: 'setup-complete' })],
+      context: null, repeatContext: null, queue: [item('p1', { type: 'setup' }), item('p2', { type: 'setup' }), item('p1', { type: 'setup-complete' })],
       pending: null, choiceSequence: 0, buildingSequence: 0, claimedMilestones: []
     };
     drain(state, []);
@@ -694,7 +909,7 @@ export const arkGame: GameModule<ArkState, ArkConfig, ArkCommand, ArkView, ArkRe
         buried: player.buried.map(buried => ({ host: buried.host, card: player.id === viewer ? buried.card : 'hidden' }))
       })),
       market: [...state.market], deckCount: state.deck.length, discardCount: state.discard.length,
-      projects: structuredClone(state.projects), partnerSupply: [...state.partnerSupply], universitySupply: [...state.universitySupply],
+      projects: structuredClone(state.projects), activeProjects: structuredClone(state.activeProjects), bonusTiles: structuredClone(state.bonusTiles), partnerSupply: [...state.partnerSupply], universitySupply: [...state.universitySupply],
       donations: state.donations, breakProgress: state.breakProgress, breaks: state.breaks, turns: state.turns,
       finalTurns: state.finalTurns,
       context: state.context ? { ...structuredClone(state.context), after: [] } : null,
@@ -725,8 +940,12 @@ export const arkGame: GameModule<ArkState, ArkConfig, ArkCommand, ArkView, ArkRe
     }
     if (!state.context) {
       for (const action of ARK_ACTIONS) {
-        for (let spendX = 0; spendX <= player.x; spendX += 1) add(`${action}-${spendX}`, `${ACTION_NAMES[action]}，强度 ${strengthFor(player, action, spendX)}`, { type: 'begin', action, spendX });
+        for (let spendX = 0; spendX <= player.x; spendX += 1) {
+          add(`${action}-${spendX}`, `${ACTION_NAMES[action]}，强度 ${strengthFor(player, action, spendX)}`, { type: 'begin', action, spendX });
+          if (player.doubleTokens.includes(action)) add(`${action}-${spendX}-double`, `双重${ACTION_NAMES[action]}`, { type: 'begin', action, spendX, useDouble: true });
+        }
         add(`x-${action}`, `${ACTION_NAMES[action]}替代：获得 X`, { type: 'take-x', action });
+        if (player.doubleTokens.includes(action)) add(`double-x-${action}`, '消耗双重标记获得最多 2 枚 X', { type: 'take-x', action, useDouble: true });
       }
     } else {
       const context = state.context;
@@ -765,6 +984,7 @@ export const arkGame: GameModule<ArkState, ArkConfig, ArkCommand, ArkView, ArkRe
   },
   assertInvariants(state) {
     const located = [...state.deck, ...state.discard, ...state.revealed, ...state.market.filter(card => card !== null),
+      ...state.activeProjects.map(project => project.id),
       ...state.players.flatMap(player => [...player.hand, ...player.animals, ...player.sponsors, ...player.buried.map(buried => buried.card)])];
     if (located.length !== CARD_IDS.length || new Set(located).size !== CARD_IDS.length || located.some(id => !CARD_IDS.includes(id))) throw new Error('卡牌实例守恒失败。');
     const finals = [...state.finalDeck, ...state.finalDiscard, ...state.players.flatMap(player => player.finals)];
@@ -774,10 +994,18 @@ export const arkGame: GameModule<ArkState, ArkConfig, ArkCommand, ArkView, ArkRe
       if (player.x > 5 || player.reputation > (player.upgrades.includes('cards') ? 15 : 9) || availableWorkers(player) < 0 || player.workers > 4) throw new Error('资源上限或工人数量错误。');
       if (new Set(player.row).size !== 5 || player.row.length !== 5 || player.row.some(action => !ARK_ACTIONS.includes(action))) throw new Error('五行动顺序错误。');
       const occupied = player.buildings.flatMap(building => building.cells);
-      if (new Set(occupied.map(hexKey)).size !== occupied.length || occupied.some(cell => !MAP_A.some(candidate => hexKey(cell) === hexKey(candidate) && candidate.terrain === 'land'))) throw new Error('地图建筑重叠或覆盖地形。');
+      if (new Set(occupied.map(hexKey)).size !== occupied.length || occupied.some(cell => !mapCells(player.map).some(candidate => hexKey(cell) === hexKey(candidate) && candidate.terrain === 'land'))) throw new Error('地图建筑重叠或覆盖地形。');
       const housed = player.buildings.flatMap(building => building.animals);
-      if (new Set(housed).size !== player.animals.length || housed.some(id => !player.animals.includes(id))) throw new Error('动物安置状态不一致。');
+      if (new Set(housed).size !== housed.length || housed.some(id => !player.animals.includes(id))) throw new Error('动物安置标签不一致。');
+      for (const building of player.buildings) {
+        const space = buildingUsedSpace(building);
+        if (!Number.isInteger(space) || space < 0 || space > (building.kind.startsWith('enclosure') ? 1 : building.kind === 'petting' ? 3 : 5)) throw new Error('饲养区占用或容量无效。');
+        if ((building.kind === 'aviary' || building.kind === 'reptile-house') && building.animals.some(id => zooCard(id).specialHousing?.kind !== building.kind)) throw new Error('特殊饲养区动物种类无效。');
+      }
+      if (player.supportedProjects.length !== player.projectRewards.length || new Set(player.projectRewards).size !== player.projectRewards.length) throw new Error('保护项目标记守恒失败。');
     }
+    if (state.activeProjects.length > 2 || state.activeProjects.some(project => !DECK_PROJECTS.some(spec => spec.id === project.id))) throw new Error('双人保护项目上方最多两张。');
+    if (state.bonusTiles.length !== 4 || new Set(state.bonusTiles.map(tile => tile.reward)).size !== 4) throw new Error('随机保护奖励配置无效。');
     if (state.pending && (!state.players.some(player => player.id === state.pending!.actor) || state.pending.options.length < state.pending.min)) throw new Error('待处理选择无效。');
     if (!state.pending && state.queue.length) throw new Error('存在未结算队列。');
     if (state.phase === 'finished' && (state.pending || state.queue.length || state.context)) throw new Error('终局残留操作。');

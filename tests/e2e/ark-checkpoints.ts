@@ -1,10 +1,26 @@
 import { applyCommand, createSession } from '@eurogame/engine-core';
-import { arkGame, arkActor, chooseArkCommand, type ArkSession, type ArkCommand } from '@eurogame/game-ark-nova';
+import { arkGame, arkActor, chooseArkCommand, buildCommands, buildingCells, housingError, zooCard, freedEnclosures, type ArkSession, type ArkCommand } from '@eurogame/game-ark-nova';
 
 export function arkSubmit(session: ArkSession, command: ArkCommand): ArkSession {
   const outcome = applyCommand(arkGame, session, { id: `checkpoint-${session.state.revision}`, actor: arkActor(session.state), revision: session.state.revision, command });
   if (!outcome.ok) throw new Error(outcome.error.message);
   return outcome.session;
+}
+export function specialHallCheckpoint() {
+  const session = naturalCheckpoint(current => {
+    const player = current.state.players[0]!;
+    return !current.state.pending && !current.state.context && current.state.activePlayer === 'p1' &&
+      player.upgrades.includes('build') && player.row.indexOf('build') === 4 && player.money >= 10 &&
+      player.animals.some(id => zooCard(id).specialHousing && freedEnclosures(player, id).length > 0);
+  }, [4]);
+  const player = session.state.players[0]!;
+  const builds = buildCommands(session.state, player, 5, true, [], Infinity);
+  for (const command of builds.filter(command => command.kind === 'aviary' || command.kind === 'reptile-house')) {
+    const building = { id: 'preview', kind: command.kind, cells: buildingCells(command.kind, command, command.rotation, command.flip), animals: [] };
+    const animal = player.animals.find(id => zooCard(id).specialHousing?.kind === command.kind && !housingError(building, id, player.map) && freedEnclosures(player, id).length > 0);
+    if (animal) return { session, build: command, animal };
+  }
+  throw new Error('检查点没有可转移动物的合法特殊馆位置。');
 }
 export function preparedArk(seed: number, keep: string[] = []): ArkSession {
   let session = createSession(arkGame, {}, seed);

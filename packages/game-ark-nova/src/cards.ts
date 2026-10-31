@@ -3,13 +3,14 @@ export const ANIMAL_TAGS = ['predator', 'herbivore', 'primate', 'reptile', 'bird
 export const TAG_NAMES: Record<string, string> = {
   africa: '非洲', americas: '美洲', australia: '澳洲', asia: '亚洲', europe: '欧洲',
   predator: '食肉类', herbivore: '食草类', primate: '灵长类', reptile: '爬行类', bird: '鸟类', bear: '熊类', pet: '萌宠', science: '研究',
-  water: '水域', rock: '岩石', 'all-animals': '不同动物类目', 'all-continents': '不同大洲'
+  water: '水域', rock: '岩石', 'all-animals': '不同动物类目', 'all-continents': '不同大洲',
+  'animal-size-2': '小型动物', 'animal-size-4': '大型动物'
 };
 export interface Ability { key: string; value: number | string }
 export interface ZooCard {
   id: string;
   name: string;
-  kind: 'animal' | 'sponsor';
+  kind: 'animal' | 'sponsor' | 'project';
   size: number;
   price: number;
   appeal: number;
@@ -21,6 +22,7 @@ export interface ZooCard {
   requirements: string[];
   abilities: Ability[];
   strength: number;
+  specialHousing?: { kind: 'reptile-house' | 'aviary'; space: number };
 }
 type AnimalRow = [string, string, number, number, number, number, number, number, number, string[], string[], [string, number | string][]];
 const animalRows: AnimalRow[] = [
@@ -113,22 +115,6 @@ const sponsorRows: [string, string, number, string[], string[], number][] = [
   ['238','鸟类学家',4,['bird'],[],0], ['239','食肉动物专家',4,['predator'],[],0],
   ['240','食草动物专家',4,['herbivore'],[],0], ['261','导游学校参观',3,[],[],0]
 ];
-export const ZOO_CARDS: ZooCard[] = [
-  ...animalRows.map(([id, name, size, price, appeal, conservation, reputation, rock, water, tags, requirements, abilities]): ZooCard =>
-    ({ id, name, kind: 'animal', size, price, appeal, conservation, reputation, rock, water, tags, requirements, abilities: abilities.map(([key, value]) => ({ key, value })), strength: 0 })),
-  ...sponsorRows.map(([id, name, strength, tags, requirements, reputation]): ZooCard => ({
-    id, name, kind: 'sponsor', strength, tags, requirements, reputation,
-    size: 0, price: 0, appeal: 0, conservation: 0, rock: 0, water: 0, abilities: []
-  }))
-];
-export const CARD_IDS = ZOO_CARDS.map(card => card.id);
-const byId = new Map(ZOO_CARDS.map(card => [card.id, card]));
-export function zooCard(id: string): ZooCard {
-  const card = byId.get(id);
-  if (!card) throw new Error(`卡牌 ${id} 不在首版已实现牌池中。`);
-  return card;
-}
-
 export const ABILITY_LABELS: Record<string, string> = {
   SPRINT: '冲刺：从牌库抽牌', PACK: '群体：每个食肉图标获得 1 魅力', HUNTER: '狩猎：展示牌库并选择一张动物',
   CLEVER: '机灵：行动完成后移动一张行动卡至槽位 1', JUMPING: '跳跃：推进休息并获得等量资金',
@@ -140,18 +126,83 @@ export const ABILITY_LABELS: Record<string, string> = {
   FULL_THROATED: '呼唤：解锁一个事务员'
 };
 export function sponsorDescription(id: string): string {
-  if (id === '203') return '支持保护项目所需协会强度降至 4。';
-  if (id === '209') return '每次休息获得 1 枚 X 标记。';
-  if (id === '220') return '每次休息获得 3 资金。';
-  if (id === '225') return '免疫毒液、缠绕、催眠、偷窃；终局集齐 5 大洲获得 1 保护。此牌池不包含这些攻击效果。';
+  if (id === '203') return '打出时有 1/2/3 所大学获得 2/5/10 资金；项目所需协会强度降至 4；终局有三所大学获得 1 保护。';
+  if (id === '209') return '立即和每次休息获得 1 枚 X；终局有三所大学获得 1 保护。';
+  if (id === '220') return '立即和每次休息获得 3 资金；终局声望至少 9，获得 1 保护。';
+  if (id === '225') return '立即获得 1 枚 X。免疫毒液、缠绕、催眠、偷窃；终局集齐 5 大洲获得 1 保护。此牌池不包含这些攻击效果。';
   if (id === '226') return '立即获得 2 声望；终局集齐 5 大洲获得 1 保护。';
-  if (id === '229') return '安置面积 1–2 的小型动物费用减少 3。';
-  if (id === '230') return '安置面积 4–5 的大型动物费用减少 4。';
+  if (id === '229') return '立即每只小型动物获得 1 魅力；之后安置小型动物费用减少 3。';
+  if (id === '230') return '立即每只大型动物获得 2 魅力；之后安置大型动物费用减少 4。';
   if (Number(id) >= 231 && Number(id) <= 235) return '打出时每个对应动物图标获得 1 魅力；休息时有 1/3/5 个图标获得 3/6/9 资金。';
   if (Number(id) >= 236 && Number(id) <= 240) return '每次任何动物园打出对应动物图标时，每个图标获得 3 资金。包括本卡自身图标。';
-  return '终局集齐 5 种不同动物类目，获得 1 保护。';
+  return '立即获得 1 魅力与 1 保护；终局集齐 5 种不同动物类目，获得 1 保护。';
 }
 export interface Project { id: string; name: string; tag: string; thresholds: number[]; points: number[] }
+export interface DeckProject extends Project {
+  mode: 'release' | 'breed' | 'collect';
+  reputation: number[];
+  playReputation: number;
+}
+export const DECK_PROJECTS: DeckProject[] = [
+  ...[
+    ['113', '巴伐利亚森林国家公园', 'europe'], ['114', '优胜美地国家公园', 'americas'],
+    ['115', '安通国家公园', 'asia'], ['116', '塞伦盖蒂国家公园', 'africa'], ['117', '蓝山国家公园', 'australia'],
+    ['118', '热带大草原', 'predator'], ['119', '低矮山脉', 'bird'], ['120', '竹林', 'herbivore'],
+    ['121', '海蚀洞', 'reptile'], ['122', '丛林', 'primate']
+  ].map(([id, name, tag]): DeckProject => ({ id: id!, name: name!, tag: tag!, thresholds: [4, 3, 2], points: [5, 4, 3], mode: 'release', reputation: [0, 0, 0], playReputation: 1 })),
+  ...['bird', 'predator', 'reptile', 'herbivore', 'primate'].map((tag, index): DeckProject => ({
+    id: String(123 + index), name: `${TAG_NAMES[tag]}动物繁育计划`, tag, thresholds: [1, 1, 1], points: [2, 1, 2],
+    mode: 'breed', reputation: [2, 2, 0], playReputation: 0
+  })),
+  ...[
+    { id: '128', name: '水生态', tag: 'water', thresholds: [5, 4, 2] },
+    { id: '129', name: '地质学', tag: 'rock', thresholds: [5, 4, 2] },
+    { id: '130', name: '小型动物', tag: 'animal-size-2', thresholds: [8, 5, 2] },
+    { id: '131', name: '大型动物', tag: 'animal-size-4', thresholds: [4, 3, 2] },
+    { id: '132', name: '科研', tag: 'science', thresholds: [5, 4, 2] }
+  ].map((project): DeckProject => ({ ...project, mode: 'collect', points: [4, 3, 2], reputation: [0, 0, 0], playReputation: 0 }))
+];
+const specialSpaces: Record<string, ['reptile-house' | 'aviary', number]> = {
+  '469': ['reptile-house', 3], '471': ['reptile-house', 2], '472': ['reptile-house', 1],
+  '473': ['reptile-house', 0], '476': ['reptile-house', 2], '477': ['reptile-house', 0],
+  '478': ['reptile-house', 0], '479': ['reptile-house', 2], '480': ['reptile-house', 2],
+  '481': ['reptile-house', 2], '484': ['reptile-house', 1], '486': ['reptile-house', 0],
+  '487': ['reptile-house', 0], '488': ['reptile-house', 0], '489': ['reptile-house', 3],
+  '490': ['reptile-house', 2], '491': ['reptile-house', 1], '493': ['reptile-house', 0],
+  '494': ['aviary', 4], '495': ['aviary', 1], '496': ['aviary', 1], '498': ['aviary', 1],
+  '499': ['aviary', 1], '500': ['aviary', 1], '504': ['aviary', 1], '506': ['aviary', 1]
+};
+export const ZOO_CARDS: ZooCard[] = [
+  ...animalRows.map(([id, name, size, price, appeal, conservation, reputation, rock, water, tags, requirements, abilities]): ZooCard => {
+    const special = specialSpaces[id];
+    return { id, name, kind: 'animal', size, price, appeal, conservation, reputation, rock, water, tags, requirements,
+      abilities: abilities.map(([key, value]) => ({ key, value })), strength: 0,
+      ...(special ? { specialHousing: { kind: special[0], space: special[1] } } : {}) };
+  }),
+  ...sponsorRows.map(([id, name, strength, tags, requirements, reputation]): ZooCard => ({
+    id, name, kind: 'sponsor', strength, tags, requirements, reputation,
+    size: 0, price: 0, appeal: 0, conservation: 0, rock: 0, water: 0, abilities: []
+  })),
+  ...DECK_PROJECTS.map((project): ZooCard => ({
+    id: project.id, name: project.name, kind: 'project', strength: 0, tags: [], requirements: [], reputation: 0,
+    size: 0, price: 0, appeal: 0, conservation: 0, rock: 0, water: 0, abilities: []
+  }))
+];
+export const CARD_IDS = ZOO_CARDS.map(card => card.id);
+const byId = new Map(ZOO_CARDS.map(card => [card.id, card]));
+export function zooCard(id: string): ZooCard {
+  const card = byId.get(id);
+  if (!card) throw new Error(`卡牌 ${id} 不在已实现牌池中。`);
+  return card;
+}
+export function projectDescription(id: string): string {
+  const project = DECK_PROJECTS.find(project => project.id === id);
+  if (!project) return '';
+  const tag = TAG_NAMES[project.tag] ?? (project.tag === 'animal-size-2' ? '小型动物' : '大型动物');
+  return project.mode === 'release' ? `放归一只${tag}动物（标准面积分别为 4–5 / 3 / 1–2），获得 5 / 4 / 3 保护。首次打入场时获得 1 声望。` :
+    project.mode === 'breed' ? `需要一只${tag}动物与其同大洲的合作动物园；占用空置等级，获得对应保护与声望。` :
+    `统计动物园内的${tag}：${project.thresholds.join(' / ')}，获得 4 / 3 / 2 保护。`;
+}
 export const BASE_PROJECTS: Project[] = [
   { id: '101', name: '物种多样性', tag: 'all-animals', thresholds: [5, 4, 3], points: [5, 3, 2] },
   { id: '102', name: '栖息地多样性', tag: 'all-continents', thresholds: [5, 4, 3], points: [5, 3, 2] },
@@ -172,7 +223,7 @@ export const FINAL_CARDS = [
   { id: '011', name: '水生态公园', metric: 'water', thresholds: [2, 4, 6, 8] }
 ];
 export const ARK_LIMITATIONS = [
-  '首版仅地图 A、双人、已实现动物与赞助商牌池；不含 20 张牌库保护项目。',
-  '鸟禽馆、爬行馆、额外行动、双重/毒液/缠绕及其他未入池能力尚未开放。',
-  '保护 5/8 点的奖励使用公开固定教学配置；完整随机奖励池后续补齐。'
+  '当前支持双人地图 A / 0、三种特殊饲养区、20 张牌库保护项目和随机保护奖励；动物与赞助商仍使用限定牌池。',
+  '额外行动、毒液、缠绕与其它未入池卡牌能力仍待后续完成；不代表完整基础版已验收。',
+  '当前规则版本与旧首版存档不兼容，旧文件保留，不自动按新规则修改。'
 ];

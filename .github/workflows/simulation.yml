@@ -27,6 +27,8 @@ jobs:
         run: pnpm simulate --seeds "$SEED_COUNT" --max-decisions 1500
       - name: Verify Ark Nova first-playable games
         run: pnpm simulate:ark --seeds 20 --max-decisions 1500
+      - name: Verify Ark Nova map 0 games
+        run: pnpm simulate:ark --seeds 20 --map 0 --max-decisions 1500 --output .artifacts/ark-simulation-map0
       - name: Keep reproduction files
         if: always()
         uses: actions/upload-artifact@v4
@@ -35,4 +37,5 @@ jobs:
           path: |
             .artifacts/simulation/
             .artifacts/ark-simulation/
+            .artifacts/ark-simulation-map0/
           retention-days: 7

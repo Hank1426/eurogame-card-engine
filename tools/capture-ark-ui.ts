@@ -31,6 +31,17 @@ try {
   await page.screenshot({ path: `${directory}/ark-table-viewport.png` });
   await page.locator('.ark-board-columns').scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${directory}/ark-map-viewport.png` });
+  await page.goto('http://127.0.0.1:4173/eurogame-card-engine/#/lobby');
+  await page.getByRole('button', { name: /方舟动物园/ }).click();
+  await page.getByLabel('动物园地图', { exact: true }).selectOption('0');
+  await page.getByRole('button', { name: '创建方舟对局 · 与 AI 开始', exact: true }).click();
+  await page.locator('.ark-choice-options .ark-card').first().waitFor();
+  await page.screenshot({ path: `${directory}/ark-map0-setup.png`, fullPage: true });
+  for (let index = 0; index < 4; index += 1) await page.locator('.ark-choice-options .ark-card').nth(index).click();
+  await page.getByRole('button', { name: '确认选择', exact: true }).click();
+  await page.getByTestId('ark-turn-status').filter({ hasText: '轮到你行动' }).waitFor();
+  await page.locator('.ark-board-columns').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `${directory}/ark-map0-viewport.png` });
   if (errors.length) throw new Error(errors.join('\n'));
-  console.log('已生成 ark-setup.png、ark-table.png、ark-table-viewport.png、ark-map-viewport.png。');
+  console.log('已生成地图 A 完整牌桌与地图 0 设置、视口截图。');
 } finally { await browser.close(); }

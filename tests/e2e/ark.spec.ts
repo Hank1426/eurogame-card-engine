@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { createSession, exportArchive } from '@eurogame/engine-core';
-import { arkGame, arkActor, chooseArkCommand, type ArkSession } from '@eurogame/game-ark-nova';
-import { arkSubmit, preparedArk, naturalCheckpoint } from './ark-checkpoints.js';
+import { arkGame, arkActor, chooseArkCommand, zooCard, projectById, PROJECT_REWARD_NAMES, type ArkSession } from '@eurogame/game-ark-nova';
+import { arkSubmit, preparedArk, naturalCheckpoint, specialHallCheckpoint } from './ark-checkpoints.js';
 
 async function importGame(page: Page, session: ArkSession) {
   await page.goto('./');
@@ -53,7 +53,7 @@ test('阶段一验收：规则入口和起手选择刷新恢复', async ({ page 
   await expect(page.getByTestId('ark-choice-prompt')).toHaveText('从 8 张起始卡牌中保留 4 张');
   await expect(page.locator('.ark-choice-options .ark-card')).toHaveCount(8);
   await page.getByRole('link', { name: '游戏规则 ↗', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '方舟动物园 · 双人地图 A', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '方舟动物园 · 双人地图 A / 0', exact: true })).toBeVisible();
   await page.getByRole('link', { name: '返回方舟牌桌', exact: true }).click();
   await expect(page.getByTestId('ark-choice-prompt')).toBeVisible();
 });
@@ -122,4 +122,72 @@ test('阶段二验收：正常整局的最后回合通过界面完成，终局�
   await page.getByRole('button', { name: '返回当前对局', exact: true }).click();
   await expect(page.getByTestId('ark-revision')).toHaveText(revision!);
   await expect(page.getByTestId('ark-result')).toBeVisible();
+});
+
+test('阶段三验收：创建地图 0、边界首建、随机奖励与分槽恢复', async ({ page }) => {
+  await page.goto('./');
+  await page.getByRole('button', { name: /方舟动物园/ }).click();
+  await page.getByLabel('动物园地图', { exact: true }).selectOption('0');
+  await page.getByRole('button', { name: '创建方舟对局 · 与 AI 开始', exact: true }).click();
+  await expect(page.getByRole('group', { name: '你的动物园 地图 0', exact: true }).getByRole('button')).toHaveCount(58);
+  await expect(page.getByRole('region', { name: '本局随机保护奖励' }).locator('span > b')).toHaveCount(4);
+  await chooseStartingHand(page);
+  await page.getByRole('button', { name: '选择建造行动', exact: true }).click();
+  await page.getByLabel('建筑类型', { exact: true }).selectOption('enclosure-1');
+  await page.getByRole('button', { name: '地图 0 格 4,1 空地', exact: true }).click();
+  await expect(page.getByRole('button', { name: '确认建造', exact: true })).toBeDisabled();
+  await expect(page.getByRole('status').filter({ hasText: '边界' })).toBeVisible();
+  await page.getByRole('button', { name: '地图 0 格 0,2 空地', exact: true }).click();
+  await page.getByRole('button', { name: '确认建造', exact: true }).click();
+  await expect(page.getByTestId('ark-money')).toHaveText('23 ◈');
+  await expect(page.getByTestId('ark-turn-status')).toHaveText('轮到你行动', { timeout: 15_000 });
+  await expect(page.getByRole('status').filter({ hasText: '已自动保存在此浏览器' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('group', { name: '你的动物园 地图 0', exact: true })).toBeVisible();
+  await expect(page.getByTestId('ark-money')).toHaveText('23 ◈');
+});
+
+test('阶段三验收：正常对局建成特殊馆后转移，刷新保留一次性选择', async ({ page }) => {
+  test.setTimeout(60_000);
+  const checkpoint = specialHallCheckpoint();
+  await importGame(page, checkpoint.session);
+  await page.getByRole('button', { name: '选择建造行动', exact: true }).click();
+  await page.getByLabel('建筑类型', { exact: true }).selectOption(checkpoint.build.kind);
+  for (let index = 0; index < checkpoint.build.rotation; index += 1) await page.getByRole('button', { name: '↻ 旋转', exact: true }).click();
+  if (checkpoint.build.flip) await page.getByRole('button', { name: '⇆ 镜像', exact: true }).click();
+  await page.getByRole('button', { name: `地图 A 格 ${checkpoint.build.q},${checkpoint.build.r} 空地`, exact: true }).click();
+  await page.getByRole('button', { name: '确认建造', exact: true }).click();
+  for (let count = 0; count < 6; count += 1) {
+    const prompt = await page.getByTestId('ark-choice-prompt').textContent();
+    if (prompt?.includes('仅此一次')) break;
+    await page.locator('.ark-choice-options button').first().click();
+    await page.getByRole('button', { name: '确认选择', exact: true }).click();
+  }
+  await expect(page.getByTestId('ark-choice-prompt')).toContainText('仅此一次');
+  await expect(page.getByRole('status').filter({ hasText: '已自动保存在此浏览器' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByTestId('ark-choice-prompt')).toContainText('仅此一次');
+  await page.locator('.ark-choice-option').filter({ hasText: `转移${zooCard(checkpoint.animal).name}` }).first().click();
+  await page.getByRole('button', { name: '确认选择', exact: true }).click();
+  if (await page.getByTestId('ark-choice-prompt').isVisible()) await page.getByRole('button', { name: '确认选择', exact: true }).click();
+  await expect(page.getByTestId('ark-turn-status')).toHaveText('轮到你行动', { timeout: 15_000 });
+});
+
+test('阶段三验收：从真实正常局打出放归项目、选择奖励并公开占用等级', async ({ page }) => {
+  test.setTimeout(60_000);
+  const session = naturalCheckpoint(current => !current.state.pending && current.state.activePlayer === 'p1' && current.state.context?.action === 'association' &&
+    arkGame.getDecision(current.state, 'p1')!.options.some(option => option.command.type === 'association' && option.command.releaseAnimal && option.command.reward === 'money-12'));
+  const selected = arkGame.getDecision(session.state, 'p1')!.options.find(option => option.command.type === 'association' && option.command.releaseAnimal && option.command.reward === 'money-12')!;
+  if (selected.command.type !== 'association') throw new Error('项目检查点错误。');
+  const command = selected.command;
+  await importGame(page, session);
+  const button = page.locator('.ark-association-options button').filter({ hasText: projectById(command.target).name })
+    .filter({ hasText: `放归${zooCard(command.releaseAnimal!).name}` }).filter({ hasText: PROJECT_REWARD_NAMES[command.reward]! });
+  await button.first().click();
+  for (let count = 0; count < 6 && await page.getByTestId('ark-choice-prompt').isVisible(); count += 1) {
+    await page.locator('.ark-choice-options button').first().click();
+    await page.getByRole('button', { name: '确认选择', exact: true }).click();
+  }
+  await expect(page.getByTestId('ark-active-projects')).toContainText(projectById(command.target).name);
+  await expect(page.getByTestId('ark-active-projects')).toContainText('你已支持');
 });

@@ -1,9 +1,10 @@
 {
-  "rulesVersion": "base-v2-first-playable-1",
+  "rulesVersion": "base-v2-stage-three-1",
   "status": "experimental",
   "implementedIds": {
     "animal": ["401","402","403","404","405","406","407","410","411","412","413","414","417","418","420","421","422","423","424","425","433","436","437","441","444","448","450","452","454","455","459","460","461","462","465","467","468","469","471","472","473","476","477","478","479","480","481","484","486","487","488","489","490","491","493","494","495","496","498","499","500","503","504","506","507","512","513","517","519","520","521","522","523","525","526","527","528"],
     "sponsor": ["203","209","220","225","226","229","230","231","232","233","234","235","236","237","238","239","240","261"],
+    "project": ["113","114","115","116","117","118","119","120","121","122","123","124","125","126","127","128","129","130","131","132"],
     "base-project": ["101","102","103","104","105","106","107","108","109","110","111","112"],
     "endgame": ["001","002","003","004","005","006","007","008","009","010","011"]
   },
@@ -16,16 +17,16 @@
   ],
   "cards": [],
   "rules": [
-    { "id": "AN-SETUP", "label": "双人设置与地图 A（地图 0 待实现）", "source": "中文规则书 §3", "status": "tested", "tests": ["packages/game-ark-nova/src/engine.test.ts"] },
+    { "id": "AN-SETUP", "label": "双人设置与地图 A / 0", "source": "中文规则书 §3", "status": "tested", "tests": ["packages/game-ark-nova/src/engine.test.ts"] },
     { "id": "AN-ACTION-ROW", "label": "五行动槽位与移动", "source": "中文规则书 §4.1", "status": "tested", "tests": ["packages/game-ark-nova/src/index.test.ts"] },
     { "id": "AN-X", "label": "X 标记替代行动与强度", "source": "中文规则书 §4.2、§5.8", "status": "tested", "tests": ["packages/game-ark-nova/src/foundation.test.ts"] },
     { "id": "AN-UPGRADE", "label": "行动升级与生效时机", "source": "中文规则书 §4.3", "status": "tested", "tests": ["packages/game-ark-nova/src/rules.test.ts"] },
     { "id": "AN-CARDS", "label": "卡牌行动、展示区和声望", "source": "中文规则书 §5.1", "status": "tested", "tests": ["packages/game-ark-nova/src/rules.test.ts"] },
-    { "id": "AN-BUILD", "label": "建造与地图 A 奖励（鸟禽馆、爬行馆待实现）", "source": "中文规则书 §5.2", "status": "tested", "tests": ["packages/game-ark-nova/src/foundation.test.ts", "packages/game-ark-nova/src/rules.test.ts"] },
+    { "id": "AN-BUILD", "label": "地图 A / 0 建造、鸟禽馆、爬行馆和一次性转移", "source": "中文规则书 §5.2", "status": "tested", "tests": ["packages/game-ark-nova/src/foundation.test.ts", "packages/game-ark-nova/src/rules.test.ts"] },
     { "id": "AN-ANIMAL", "label": "入池动物安置与行动后效果", "source": "中文规则书 §5.3–5.4", "status": "tested", "tests": ["packages/game-ark-nova/src/rules.test.ts"] },
-    { "id": "AN-ASSOCIATION", "label": "协会与基础项目（牌库项目待实现）", "source": "中文规则书 §5.5–5.6", "status": "tested", "tests": ["packages/game-ark-nova/src/rules.test.ts"] },
+    { "id": "AN-ASSOCIATION", "label": "协会、基础项目、牌库项目与放归动物", "source": "中文规则书 §5.5–5.6", "status": "tested", "tests": ["packages/game-ark-nova/src/rules.test.ts"] },
     { "id": "AN-SPONSOR", "label": "入池赞助商与持续效果", "source": "中文规则书 §5.7", "status": "tested", "tests": ["packages/game-ark-nova/src/rules.test.ts"] },
-    { "id": "AN-TRACKS", "label": "轨道、收入表与固定教学保护奖励", "source": "中文规则书 §6", "status": "tested", "tests": ["packages/game-ark-nova/src/foundation.test.ts", "packages/game-ark-nova/src/rules.test.ts"] },
+    { "id": "AN-TRACKS", "label": "轨道、收入表与随机保护奖励", "source": "中文规则书 §6", "status": "tested", "tests": ["packages/game-ark-nova/src/foundation.test.ts", "packages/game-ark-nova/src/rules.test.ts"] },
     { "id": "AN-BREAK", "label": "休息的结算顺序", "source": "中文规则书 §7", "status": "tested", "tests": ["packages/game-ark-nova/src/rules.test.ts"] },
     { "id": "AN-ENDGAME", "label": "首版终局触发与计分", "source": "中文规则书 §8", "status": "tested", "tests": ["packages/game-ark-nova/src/foundation.test.ts", "packages/game-ark-nova/src/rules.test.ts"] }
   ]

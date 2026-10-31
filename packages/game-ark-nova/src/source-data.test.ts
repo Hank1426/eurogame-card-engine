@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
-import { BASE_PROJECTS, FINAL_CARDS, ZOO_CARDS } from './cards.js';
+import { BASE_PROJECTS, DECK_PROJECTS, FINAL_CARDS, ZOO_CARDS } from './cards.js';
 
 interface SourceCard {
   id: string;
@@ -10,6 +10,7 @@ interface SourceCard {
     slots?: { indicator: number; bonuses: { bonusValue: number }[] }[];
     originalArray?: { requirement: number | string }[];
     scoreArray?: { requirement: number | string }[];
+    specialEnclosures?: { arguments: [string, number] }[];
   };
 }
 const sourcePath = 'content/private/ark-nova.reference.json';
@@ -27,12 +28,21 @@ it.runIf(existsSync(sourcePath))('本地参考数据独立核对入池卡数值�
     if (card.kind === 'animal') {
       expect(card.size, card.id).toBe(raw.size);
       expect(card.price, card.id).toBe(raw.price);
-    } else expect(card.strength, card.id).toBe(raw.strength);
+      if (card.specialHousing) {
+        const special = raw.specialEnclosures!.find(special => special.arguments[0] === (card.specialHousing!.kind === 'aviary' ? 'Large Bird Aviary' : 'Reptile House'))!;
+        expect(card.specialHousing.space, card.id).toBe(special.arguments[1]);
+      }
+    } else if (card.kind === 'sponsor') expect(card.strength, card.id).toBe(raw.strength);
   }
   for (const project of BASE_PROJECTS) {
     const raw = source.cards.find(candidate => candidate.id === project.id)!.raw;
     expect(project.thresholds, project.id).toEqual(raw.slots!.map(slot => slot.indicator));
     expect(project.points, project.id).toEqual(raw.slots!.map(slot => slot.bonuses[0]!.bonusValue));
+  }
+  for (const project of DECK_PROJECTS) {
+    const raw = source.cards.find(candidate => candidate.id === project.id)!.raw;
+    expect(project.points, project.id).toEqual(raw.slots!.map(slot => slot.bonuses[0]!.bonusValue));
+    if (project.mode === 'collect') expect(project.thresholds, project.id).toEqual(raw.slots!.map(slot => slot.indicator));
   }
   for (const final of FINAL_CARDS.filter(card => card.thresholds.length)) {
     const raw = source.cards.find(candidate => candidate.id === final.id)!.raw;

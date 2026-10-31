@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { applyCommand, createSession, exportArchive, forkSessionAt, importArchive, visibleEvents } from '@eurogame/engine-core';
 import { getCard, arkReferenceSchema, referenceCardName, type ArkReference } from '@eurogame/content';
 import { arkCoverage, arkGame, type ArkSession } from '@eurogame/game-ark-nova';
@@ -10,8 +10,8 @@ import { LayoutLab } from './LayoutLab.js';
 import { readSave, writeSave } from './storage.js';
 import { MatchLobby, type MatchSettings } from './MatchLobby.js';
 import { RulesPage } from './RulesPage.js';
-import { ArkTable } from './ark/ArkTable.js';
-import { ArkRules } from './ark/ArkRules.js';
+const ArkTable = lazy(async () => ({ default: (await import('./ark/ArkTable.js')).ArkTable }));
+const ArkRules = lazy(async () => ({ default: (await import('./ark/ArkRules.js')).ArkRules }));
 
 declare const __BUILD_SHA__: string;
 const navigation = [
@@ -193,7 +193,7 @@ export function App() {
 
   function startMatch(settings: MatchSettings) {
     if (settings.game === 'ark-nova') {
-      setArkSession(createSession(arkGame, { map: 'A', playerCount: 2 }, settings.seed));
+      setArkSession(createSession(arkGame, { map: settings.map ?? 'A', playerCount: 2 }, settings.seed));
       setArkStorageBlocked(false);
       setError(''); setRecoveryArchive(null);
       window.location.hash = '/ark';
@@ -260,14 +260,14 @@ export function App() {
         {error && <div className="error-banner" role="alert"><span>{error}</span><button onClick={() => setError('')} aria-label="关闭提示">×</button></div>}
         {recoveryArchive && <button className="secondary" onClick={() => download(recoveryArchive, 'original-recovery.json')}>导出保留的原始存档</button>}
         {aiFailure && <div className="error-banner" role="alert"><span>AI 暂停：{aiFailure.message} 当前对局已保留。</span><button className="secondary small" onClick={() => setAiFailure(null)}>重试 AI</button></div>}
-        {route === 'ark-rules' ? <ArkRules /> : route === 'ark' && arkSession ? <ArkTable session={arkSession} onSessionChange={setArkSession} /> : route === 'rules' ? <RulesPage hasMatch={Boolean(session)} /> : route === 'lobby' || (route === 'table' && !session) || (route === 'ark' && !arkSession) ? <MatchLobby
+        {route === 'ark-rules' ? <Suspense fallback={<p className="muted">正在加载方舟规则…</p>}><ArkRules /></Suspense> : route === 'ark' && arkSession ? <Suspense fallback={<p className="muted">正在加载方舟牌桌…</p>}><ArkTable session={arkSession} onSessionChange={setArkSession} /></Suspense> : route === 'rules' ? <RulesPage hasMatch={Boolean(session)} /> : route === 'lobby' || (route === 'table' && !session) || (route === 'ark' && !arkSession) ? <MatchLobby
           currentMatch={session ? { playerCount: session.state.players.length, round: session.state.round, roundLimit: session.state.roundLimit, finished: session.state.phase === 'finished' } : null}
-          arkMatch={arkSession ? { playerCount: 2, round: arkSession.state.turns + 1, roundLimit: 0, finished: arkSession.state.phase === 'finished' } : null}
+          arkMatch={arkSession ? { playerCount: 2, round: arkSession.state.turns + 1, roundLimit: 0, finished: arkSession.state.phase === 'finished', map: arkSession.config.map } : null}
           onStart={startMatch}
         /> : route === 'layout' ? <LayoutLab /> : route === 'coverage' ? <>
           <div className="page-intro"><span className="eyebrow">ARK NOVA / IMPLEMENTATION TRACKER</span><h1>让每一条规则，<br />都有据可查。</h1><p>资料覆盖、程序实现与人工复核分别记录。方舟首个可玩版已开放，仍使用限定牌池；完整基础版尚未验收。</p></div>
           <div className="coverage-counters">{arkCoverage.targets.map(target => <div className="panel coverage-counter" key={target.category}><span>{target.label}</span><strong>{arkCoverage.cards.filter(card => card.category === target.category && card.implemented).length}<small> / {target.expected}</small></strong><span className="tiny">规则实现数量</span></div>)}</div>
-          <div className="panel coverage-panel"><SectionHeading eyebrow="RULE TRACEABILITY" title="双人基础版规则矩阵" extra={<span className="pill">首版地图 A · 地图 0 待实现</span>} />
+          <div className="panel coverage-panel"><SectionHeading eyebrow="RULE TRACEABILITY" title="双人基础版规则矩阵" extra={<span className="pill">地图 A / 0 · 阶段三</span>} />
             <table><thead><tr><th>规则</th><th>依据</th><th>实现进度</th></tr></thead><tbody>{arkCoverage.rules.map(rule => <tr key={rule.id}><td><strong>{rule.label}</strong><small>{rule.id}</small></td><td>{rule.source}</td><td><span className={`pill ${rule.status === 'tested' ? 'green' : 'subtle'}`}>{rule.status === 'tested' ? '已测试 · 待人工核对' : '尚未实现'}</span></td></tr>)}</tbody></table>
           </div>
         </> : route === 'catalog' ? <>

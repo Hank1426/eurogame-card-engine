@@ -33,6 +33,7 @@ jobs:
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
       - run: pnpm simulate --seeds 20
       - run: pnpm simulate:ark --seeds 3
+      - run: pnpm simulate:ark --seeds 3 --map 0 --output .artifacts/ark-simulation-map0
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
       - name: Keep original-content diagnostics
@@ -45,6 +46,7 @@ jobs:
             test-results/
             .artifacts/simulation/
             .artifacts/ark-simulation/
+            .artifacts/ark-simulation-map0/
           retention-days: 7
       - name: Keep tested public site
         uses: actions/upload-artifact@v4

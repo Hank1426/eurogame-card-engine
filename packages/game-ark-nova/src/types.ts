@@ -1,24 +1,24 @@
 import { z } from 'zod';
 import type { CoreState, GameEvent, QueueItem, Session } from '@eurogame/engine-core';
-import type { Building, BuildingKind } from './board.js';
+import type { Building, BuildingKind, MapId } from './board.js';
 import type { ArkAction } from './index.js';
 
 export const arkConfigSchema = z.object({
-  map: z.literal('A').default('A'),
+  map: z.enum(['A', '0']).default('A'),
   playerCount: z.literal(2).default(2),
-  pool: z.literal('first-playable-v1').default('first-playable-v1')
+  pool: z.literal('stage-three-v1').default('stage-three-v1')
 }).strict();
 export type ArkConfig = z.infer<typeof arkConfigSchema>;
 export const arkCommandSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('begin'), action: z.enum(['animals', 'build', 'cards', 'association', 'sponsors']), spendX: z.number().int().min(0).max(5).default(0) }).strict(),
-  z.object({ type: z.literal('take-x'), action: z.enum(['animals', 'build', 'cards', 'association', 'sponsors']) }).strict(),
-  z.object({ type: z.literal('build'), kind: z.enum(['enclosure-1', 'enclosure-2', 'enclosure-3', 'enclosure-4', 'enclosure-5', 'kiosk', 'pavilion', 'petting']), q: z.number().int(), r: z.number().int(), rotation: z.number().int().min(0).max(5), flip: z.boolean() }).strict(),
+  z.object({ type: z.literal('begin'), action: z.enum(['animals', 'build', 'cards', 'association', 'sponsors']), spendX: z.number().int().min(0).max(5).default(0), useDouble: z.boolean().optional() }).strict(),
+  z.object({ type: z.literal('take-x'), action: z.enum(['animals', 'build', 'cards', 'association', 'sponsors']), useDouble: z.boolean().optional() }).strict(),
+  z.object({ type: z.literal('build'), kind: z.enum(['enclosure-1', 'enclosure-2', 'enclosure-3', 'enclosure-4', 'enclosure-5', 'kiosk', 'pavilion', 'petting', 'reptile-house', 'aviary']), q: z.number().int(), r: z.number().int(), rotation: z.number().int().min(0).max(5), flip: z.boolean() }).strict(),
   z.object({ type: z.literal('draw'), source: z.enum(['deck', 'market']), card: z.string().default('') }).strict(),
   z.object({ type: z.literal('snap'), card: z.string() }).strict(),
   z.object({ type: z.literal('animal'), card: z.string(), source: z.enum(['hand', 'market']), building: z.string() }).strict(),
   z.object({ type: z.literal('sponsor'), card: z.string(), source: z.enum(['hand', 'market']) }).strict(),
   z.object({ type: z.literal('income') }).strict(),
-  z.object({ type: z.literal('association'), task: z.enum(['reputation', 'partner', 'university', 'project']), target: z.string(), tier: z.number().int().min(0).max(2).default(0), reward: z.string().default('money-12'), rewardFirst: z.boolean().default(false) }).strict(),
+  z.object({ type: z.literal('association'), task: z.enum(['reputation', 'partner', 'university', 'project']), target: z.string(), tier: z.number().int().min(0).max(2).default(0), reward: z.string().default('money-12'), rewardFirst: z.boolean().default(false), source: z.enum(['board', 'hand', 'market']).optional(), releaseAnimal: z.string().optional() }).strict(),
   z.object({ type: z.literal('donate') }).strict(),
   z.object({ type: z.literal('finish') }).strict(),
   z.object({ type: z.literal('resolve'), choiceId: z.string(), options: z.array(z.string()).max(20) }).strict()
@@ -27,6 +27,7 @@ export type ArkCommand = z.infer<typeof arkCommandSchema>;
 export interface ArkPlayer {
   id: string;
   name: string;
+  map: MapId;
   money: number;
   appeal: number;
   conservation: number;
@@ -47,6 +48,8 @@ export interface ArkPlayer {
   projectRewards: string[];
   coveredRewards: string[];
   mapCompleted: boolean;
+  doubleTokens: ArkAction[];
+  supportedProjects: string[];
 }
 export type ArkEffect =
   | { type: 'gain'; resource: 'money' | 'appeal' | 'conservation' | 'reputation' | 'x'; amount: number }
@@ -76,6 +79,18 @@ export type ArkEffect =
   | { type: 'score' }
   | { type: 'offer-free-build'; kind: BuildingKind }
   | { type: 'place-free-build'; command: Extract<ArkCommand, { type: 'build' }> }
+  | { type: 'offer-transfer'; building: string }
+  | { type: 'transfer'; building: string; animal: string; freed: string }
+  | { type: 'take-partner'; continent: string }
+  | { type: 'take-university'; university: string }
+  | { type: 'offer-partner' | 'offer-university' | 'offer-double' }
+  | { type: 'set-double'; action: ArkAction }
+  | { type: 'offer-pavilions'; count: number }
+  | { type: 'offer-paid-sponsor' }
+  | { type: 'play-paid-sponsor'; card: string }
+  | { type: 'repeat-action' }
+  | { type: 'start-repeat'; spendX: number }
+  | { type: 'end-repeat' }
   | { type: 'milestone'; point: 5 | 8 };
 export interface ArkChoiceOption {
   id: string;
@@ -102,7 +117,10 @@ export interface ArkActionContext {
   tasks: string[];
   donated: boolean;
   after: QueueItem<ArkEffect>[];
+  repeatRemaining: number;
+  spentX: number;
 }
+export interface ProjectSlotState { id: string; blocked: number; claimed: (string | null)[] }
 export interface ArkState extends CoreState {
   stage: 'setup' | 'turn' | 'action' | 'break' | 'scoring' | 'finished';
   activePlayer: string;
@@ -113,7 +131,9 @@ export interface ArkState extends CoreState {
   market: (string | null)[];
   finalDeck: string[];
   finalDiscard: string[];
-  projects: { id: string; blocked: number; claimed: (string | null)[] }[];
+  projects: ProjectSlotState[];
+  activeProjects: ProjectSlotState[];
+  bonusTiles: { point: 5 | 8; reward: string; claimedBy: string | null }[];
   partnerSupply: string[];
   universitySupply: string[];
   donations: number;
@@ -124,6 +144,7 @@ export interface ArkState extends CoreState {
   finalTurns: number | null;
   endingTrigger: string | null;
   context: ArkActionContext | null;
+  repeatContext: { action: ArkAction; strength: number; upgraded: boolean; after: QueueItem<ArkEffect>[] } | null;
   queue: QueueItem<ArkEffect>[];
   pending: ArkChoice | null;
   choiceSequence: number;
@@ -141,6 +162,8 @@ export interface ArkView {
   deckCount: number;
   discardCount: number;
   projects: ArkState['projects'];
+  activeProjects: ArkState['activeProjects'];
+  bonusTiles: ArkState['bonusTiles'];
   partnerSupply: string[];
   universitySupply: string[];
   donations: number;

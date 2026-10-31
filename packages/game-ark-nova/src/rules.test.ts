@@ -282,6 +282,7 @@ describe('阶段二 · 休息与终局交叉', () => {
     let session = fixture();
     const player = session.state.players[0]!;
     player.appeal = 111; player.conservation = 1; player.projectRewards = ['income-cp'];
+    player.supportedProjects = ['test-fixture'];
     session.state.breakProgress = 8;
     session = submit(session, { type: 'begin', action: 'sponsors', spendX: 0 });
     session = submit(session, { type: 'income' });
@@ -299,6 +300,6 @@ describe('阶段二 · 休息与终局交叉', () => {
   it('入池卡牌没有非有限地形数或未知能力', () => {
     expect(zooCard('486').price).toBe(4);
     expect(zooCard('407').water).toBe(2);
-    expect(() => zooCard('464')).toThrow('不在首版');
+    expect(() => zooCard('464')).toThrow('不在已实现');
   });
 });
