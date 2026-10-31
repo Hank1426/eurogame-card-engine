@@ -2,23 +2,25 @@ import { z } from 'zod';
 import type { CoreState, GameEvent, QueueItem, Session } from '@eurogame/engine-core';
 import { MAP_IDS, type Building, type BuildingKind, type MapId } from './board.js';
 import type { ArkAction } from './index.js';
+import { UNIQUE_BUILDINGS } from './unique-buildings.js';
+const buildingKinds = ['enclosure-1', 'enclosure-2', 'enclosure-3', 'enclosure-4', 'enclosure-5', 'kiosk', 'pavilion', 'petting', 'reptile-house', 'aviary', ...Object.keys(UNIQUE_BUILDINGS)] as [BuildingKind, ...BuildingKind[]];
 
 export const arkConfigSchema = z.object({
   map: z.enum(MAP_IDS).default('A'),
   playerCount: z.literal(2).default(2),
-  pool: z.literal('stage-four-v1').default('stage-four-v1')
+  pool: z.literal('base-library-v1').default('base-library-v1')
 }).strict();
 export type ArkConfig = z.infer<typeof arkConfigSchema>;
 export const arkCommandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('begin'), action: z.enum(['animals', 'build', 'cards', 'association', 'sponsors']), spendX: z.number().int().min(0).max(5).default(0), useDouble: z.boolean().optional(), doubleCount: z.number().int().min(1).max(100).optional() }).strict(),
   z.object({ type: z.literal('take-x'), action: z.enum(['animals', 'build', 'cards', 'association', 'sponsors']), useDouble: z.boolean().optional(), doubleCount: z.number().int().min(1).max(100).optional() }).strict(),
-  z.object({ type: z.literal('build'), kind: z.enum(['enclosure-1', 'enclosure-2', 'enclosure-3', 'enclosure-4', 'enclosure-5', 'kiosk', 'pavilion', 'petting', 'reptile-house', 'aviary']), q: z.number().int(), r: z.number().int(), rotation: z.number().int().min(0).max(5), flip: z.boolean() }).strict(),
+  z.object({ type: z.literal('build'), kind: z.enum(buildingKinds), q: z.number().int(), r: z.number().int(), rotation: z.number().int().min(0).max(5), flip: z.boolean() }).strict(),
   z.object({ type: z.literal('draw'), source: z.enum(['deck', 'market']), card: z.string().default('') }).strict(),
   z.object({ type: z.literal('snap'), card: z.string() }).strict(),
   z.object({ type: z.literal('animal'), card: z.string(), source: z.enum(['hand', 'market']), building: z.string() }).strict(),
   z.object({ type: z.literal('sponsor'), card: z.string(), source: z.enum(['hand', 'market']) }).strict(),
   z.object({ type: z.literal('income') }).strict(),
-  z.object({ type: z.literal('association'), task: z.enum(['reputation', 'partner', 'university', 'project']), target: z.string(), tier: z.number().int().min(0).max(2).default(0), reward: z.string().default('money-12'), rewardFirst: z.boolean().default(false), source: z.enum(['board', 'hand', 'market']).optional(), releaseAnimal: z.string().optional() }).strict(),
+  z.object({ type: z.literal('association'), task: z.enum(['reputation', 'partner', 'university', 'project']), target: z.string(), tier: z.number().int().min(0).max(2).default(0), reward: z.string().default('money-12'), rewardFirst: z.boolean().default(false), source: z.enum(['board', 'hand', 'market']).optional(), releaseAnimal: z.string().optional(), wildcard: z.enum(['215', '218']).optional(), wildcards: z.array(z.enum(['215', '218'])).min(1).max(2).refine(ids => new Set(ids).size === ids.length).optional() }).strict(),
   z.object({ type: z.literal('donate') }).strict(),
   z.object({ type: z.literal('finish') }).strict(),
   z.object({ type: z.literal('resolve'), choiceId: z.string(), options: z.array(z.string()).max(20) }).strict()
@@ -50,6 +52,8 @@ export interface ArkPlayer {
   mapCompleted: boolean;
   doubleTokens: ArkAction[];
   supportedProjects: string[];
+  animalFocus?: 'small' | 'large';
+  sponsorTokens?: Record<string, number>;
 }
 export type ArkEffect =
   | { type: 'gain'; resource: 'money' | 'appeal' | 'conservation' | 'reputation' | 'x'; amount: number }
@@ -76,14 +80,40 @@ export type ArkEffect =
   | { type: 'take-market'; card: string }
   | { type: 'refill' }
   | { type: 'final-choice' }
+  | { type: 'resistance' }
+  | { type: 'keep-resistance'; card: string }
+  | { type: 'base-project'; target: string | null }
+  | { type: 'take-base-project'; card: string }
+  | { type: 'extra-action'; action: ArkAction | null }
+  | { type: 'start-extra-action'; command: Extract<ArkCommand, { type: 'begin' | 'take-x' }> }
+  | { type: 'offer-unique'; kind: BuildingKind }
+  | { type: 'engineer' }
+  | { type: 'place-engineer'; command: Extract<ArkCommand, { type: 'build' }> }
+  | { type: 'focus' }
+  | { type: 'set-focus'; focus: 'small' | 'large' }
+  | { type: 'archaeologist' }
+  | { type: 'map-reward'; q: number; r: number }
+  | { type: 'okapi-sponsor' }
+  | { type: 'small-animal-bonus' }
+  | { type: 'play-bonus-animal'; card: string; building: string }
+  | { type: 'take-small-animal' }
+  | { type: 'finish-action' }
+  | { type: 'attack-order'; ability: string; count: number; rewards: QueueItem<ArkEffect>[] }
+  | { type: 'attack'; ability: string; count: number }
+  | { type: 'pilfer'; source: string; target: string }
+  | { type: 'pilfer-payment'; source: string; target: string; mode: 'money' | 'card' }
+  | { type: 'hypnosis'; target?: string }
+  | { type: 'start-hypnosis'; owner: string; action: ArkAction; spendX: number }
+  | { type: 'venom-payment' }
+  | { type: 'undo-turn' }
   | { type: 'continue' }
   | { type: 'end-turn' }
   | { type: 'break-start' }
   | { type: 'break-income' }
   | { type: 'break-complete' }
   | { type: 'score' }
-  | { type: 'offer-free-build'; kind: BuildingKind }
-  | { type: 'place-free-build'; command: Extract<ArkCommand, { type: 'build' }> }
+  | { type: 'offer-free-build'; kind: BuildingKind; waiveSpecialUpgrade?: boolean }
+  | { type: 'place-free-build'; command: Extract<ArkCommand, { type: 'build' }>; waiveSpecialUpgrade?: boolean }
   | { type: 'offer-transfer'; building: string }
   | { type: 'transfer'; building: string; animal: string; freed: string }
   | { type: 'take-partner'; continent: string }
@@ -92,7 +122,7 @@ export type ArkEffect =
   | { type: 'set-double'; action: ArkAction }
   | { type: 'offer-pavilions'; count: number }
   | { type: 'offer-paid-sponsor' }
-  | { type: 'play-paid-sponsor'; card: string }
+  | { type: 'play-paid-sponsor'; card: string; tokenHost?: string }
   | { type: 'repeat-action' }
   | { type: 'start-repeat'; spendX: number }
   | { type: 'end-repeat' }
@@ -124,6 +154,11 @@ export interface ArkActionContext {
   after: QueueItem<ArkEffect>[];
   repeatRemaining: number;
   spentX: number;
+  continuation?: QueueItem<ArkEffect>[];
+  playedAnimals?: string[];
+  engineerUsed?: boolean;
+  smallBonusUsed?: boolean;
+  cardOwner?: string;
 }
 export interface ProjectSlotState { id: string; blocked: number; claimed: (string | null)[] }
 export interface ArkState extends CoreState {
@@ -136,6 +171,13 @@ export interface ArkState extends CoreState {
   market: (string | null)[];
   finalDeck: string[];
   finalDiscard: string[];
+  finalRevealed: string[];
+  baseReserve: string[];
+  requiredBuildings: { actor: string; kind: BuildingKind }[];
+  venom: Record<string, ArkAction[]>;
+  constriction: Record<string, ArkAction[]>;
+  venomRemoved: boolean;
+  turnCheckpoint: ArkState | null;
   projects: ProjectSlotState[];
   activeProjects: ProjectSlotState[];
   bonusTiles: { point: 5 | 8; reward: string; claimedBy: string | null }[];
@@ -149,7 +191,7 @@ export interface ArkState extends CoreState {
   finalTurns: number | null;
   endingTrigger: string | null;
   context: ArkActionContext | null;
-  repeatContext: { action: ArkAction; strength: number; upgraded: boolean; after: QueueItem<ArkEffect>[]; remaining: number } | null;
+  repeatContext: { action: ArkAction; strength: number; upgraded: boolean; after: QueueItem<ArkEffect>[]; remaining: number; continuation?: QueueItem<ArkEffect>[]; playedAnimals?: string[] } | null;
   queue: QueueItem<ArkEffect>[];
   pending: ArkChoice | null;
   choiceSequence: number;
@@ -176,8 +218,10 @@ export interface ArkView {
   breaks: number;
   turns: number;
   finalTurns: number | null;
+  venom: Record<string, ArkAction[]>;
+  constriction: Record<string, ArkAction[]>;
   context: ArkActionContext | null;
-  pending: Omit<ArkChoice, 'options'> & { options: Omit<ArkChoiceOption, 'effects'>[] } | null;
+  pending: Omit<ArkChoice, 'options'> & { options: (Omit<ArkChoiceOption, 'effects'> & { placement?: Extract<ArkCommand, { type: 'build' }> })[] } | null;
 }
 export type ArkSession = Session<ArkState, ArkConfig, ArkCommand>;
 export type ArkEvent = GameEvent;

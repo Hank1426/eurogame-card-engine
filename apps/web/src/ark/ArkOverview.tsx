@@ -34,12 +34,13 @@ export function ArkOverview({ view, assets, inspect }: {
         })}</div>
         <div className="ark-mini-heading"><strong>牌库保护项目</strong><small>双人最多两张</small></div>
         <div className="ark-project-grid" data-testid="ark-active-projects">{view.activeProjects.length ? view.activeProjects.map(current => {
-          const project = DECK_PROJECTS.find(project => project.id === current.id)!;
+          const project = projectById(current.id);
+          const mode = DECK_PROJECTS.find(project => project.id === current.id)?.mode;
           return <article className="ark-project-card" key={current.id}><div className="ark-project-art"><ArkArtwork id={project.id} assets={assets} /><strong>{project.name}</strong></div>
             <p className="ark-project-description">{projectDescription(project.id)}</p>
             <div className="ark-project-tiers">{project.thresholds.map((need, tier) =>
               <div className={current.claimed[tier] ? `claimed ${current.claimed[tier]}` : ''} key={tier}>
-                <strong>{project.mode === 'release' ? ['4–5 格', '3 格', '1–2 格'][tier] : project.mode === 'breed' ? '动物 + 合作' : `${need} ${TAG_NAMES[project.tag]}`}</strong>
+                <strong>{mode === 'release' ? ['4–5 格', '3 格', '1–2 格'][tier] : mode === 'breed' ? '动物 + 合作' : `${need} ${TAG_NAMES[project.tag]}`}</strong>
                 <span>⬟ {project.points[tier]}</span><small>{current.claimed[tier] === 'p1' ? '你已支持' : current.claimed[tier] ? 'AI 已支持' : '可竞争'}</small>
               </div>)}</div></article>;
         }) : <p className="muted">协会行动可从手牌打出项目并立即支持。</p>}</div>

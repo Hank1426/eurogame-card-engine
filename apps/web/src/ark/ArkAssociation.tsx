@@ -9,6 +9,7 @@ export function ArkAssociation({ options, disabled, send }: { options: Associati
   const [release, setRelease] = useState('');
   const [reward, setReward] = useState('money-12');
   const [rewardFirst, setRewardFirst] = useState(false);
+  const [wildcard, setWildcard] = useState('');
   const tasks = [...new Set(options.map(option => option.task))];
   const activeTask = tasks.includes(task) ? task : tasks[0];
   const taskOptions = options.filter(option => option.task === activeTask);
@@ -23,7 +24,11 @@ export function ArkAssociation({ options, disabled, send }: { options: Associati
   const releaseOptions = tierOptions.filter(option => (option.releaseAnimal ?? '') === activeRelease);
   const rewards = [...new Set(releaseOptions.map(option => option.reward))];
   const activeReward = rewards.includes(reward) ? reward : rewards[0];
-  const command = releaseOptions.find(option => option.reward === activeReward);
+  const matchingRewards = releaseOptions.filter(option => option.reward === activeReward);
+  const wildcardKey = (option: Association) => option.wildcards?.join('+') ?? option.wildcard ?? '';
+  const wildcards = [...new Set(matchingRewards.map(wildcardKey))];
+  const activeWildcard = wildcards.includes(wildcard) ? wildcard : wildcards[0];
+  const command = matchingRewards.find(option => wildcardKey(option) === activeWildcard);
   const taskNames = { reputation: '声望 +2', partner: '合作动物园', university: '合作大学', project: '支持保护项目' };
   return <form id="ark-association-form" className="ark-association-options" onSubmit={event => { event.preventDefault(); if (command && !disabled) send({ ...command, rewardFirst }); }}>
     {!options.length ? <p className="muted">当前强度或事务员不足。可以结束行动。</p> : <>
@@ -38,6 +43,7 @@ export function ArkAssociation({ options, disabled, send }: { options: Associati
           <option key={tier} value={tier}>等级 {tier + 1} · 获得 {projectById(command.target).points[tier]} 保护点</option>)}</select></label>
         {releases.some(Boolean) && <label>放归动物<select aria-label="放归动物" value={activeRelease} onChange={event => setRelease(event.target.value)}>{releases.map(id => <option key={id} value={id}>{zooCard(id).name}</option>)}</select></label>}
         <label>边缘奖励<select aria-label="边缘奖励" value={activeReward} onChange={event => setReward(event.target.value)}>{rewards.map(reward => <option key={reward} value={reward}>{PROJECT_REWARD_NAMES[reward]}</option>)}</select></label>
+        {wildcards.some(Boolean) && <label>繁育通配标记<select aria-label="繁育通配标记" value={activeWildcard} onChange={event => setWildcard(event.target.value)}>{wildcards.map(id => <option key={id} value={id}>{id ? id.split('+').map(source => `${zooCard(source).name} ×1`).join(' + ') : '不使用标记'}</option>)}</select></label>}
         <label className="ark-reward-order"><input type="checkbox" checked={rewardFirst} onChange={event => setRewardFirst(event.target.checked)} />先领取边缘奖励，再获得保护点</label>
       </>}
     </>}

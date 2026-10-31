@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
 import { BASE_PROJECTS, DECK_PROJECTS, FINAL_CARDS, ZOO_CARDS } from './cards.js';
+import corrections from '../../../content/ark-nova/source-corrections.json' with { type: 'json' };
 
 interface SourceCard {
   id: string;
@@ -17,7 +18,8 @@ const sourcePath = 'content/private/ark-nova.reference.json';
 it.runIf(existsSync(sourcePath))('本地参考数据独立核对入池卡数值、条件、基础项目和原版终局阈值', () => {
   const source = JSON.parse(readFileSync(sourcePath, 'utf8')) as { cards: SourceCard[] };
   for (const card of ZOO_CARDS) {
-    const raw = source.cards.find(candidate => candidate.id === card.id)!.raw;
+    const raw = { ...source.cards.find(candidate => candidate.id === card.id)!.raw };
+    for (const correction of corrections.corrections.filter(correction => correction.id === card.id)) Object.assign(raw, { [correction.field]: correction.value });
     expect(card.tags, card.id).toEqual(raw.tags ?? []);
     expect(card.requirements, card.id).toEqual(raw.requirements ?? []);
     expect(card.appeal, card.id).toBe(raw.appeal ?? 0);

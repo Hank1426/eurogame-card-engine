@@ -12,6 +12,7 @@ import { MatchLobby, type MatchSettings } from './MatchLobby.js';
 import { RulesPage } from './RulesPage.js';
 const ArkTable = lazy(async () => ({ default: (await import('./ark/ArkTable.js')).ArkTable }));
 const ArkRules = lazy(async () => ({ default: (await import('./ark/ArkRules.js')).ArkRules }));
+const AssetLibrary = lazy(async () => ({ default: (await import('./ark/AssetLibrary.js')).AssetLibrary }));
 
 declare const __BUILD_SHA__: string;
 const navigation = [
@@ -21,7 +22,8 @@ const navigation = [
   { id: 'rules', symbol: '◇', label: '游戏规则', caption: 'HOW TO PLAY' },
   { id: 'layout', symbol: '⬡', label: '建造交互实验', caption: 'SPATIAL LAB' },
   { id: 'coverage', symbol: '◎', label: '方舟规则进度', caption: 'RULE COVERAGE' },
-  { id: 'catalog', symbol: '▤', label: '本地参考卡库', caption: 'LOCAL REFERENCE' }
+  { id: 'catalog', symbol: '▤', label: '本地参考卡库', caption: 'LOCAL REFERENCE' },
+  { id: 'assets', symbol: '▧', label: '美术资源', caption: 'ASSET LIBRARY' }
 ];
 const messageOf = (error: unknown) => error instanceof Error ? error.message : '操作失败。';
 const HUMAN_PLAYER = 'p1';
@@ -260,12 +262,12 @@ export function App() {
         {error && <div className="error-banner" role="alert"><span>{error}</span><button onClick={() => setError('')} aria-label="关闭提示">×</button></div>}
         {recoveryArchive && <button className="secondary" onClick={() => download(recoveryArchive, 'original-recovery.json')}>导出保留的原始存档</button>}
         {aiFailure && <div className="error-banner" role="alert"><span>AI 暂停：{aiFailure.message} 当前对局已保留。</span><button className="secondary small" onClick={() => setAiFailure(null)}>重试 AI</button></div>}
-        {route === 'ark-rules' ? <Suspense fallback={<p className="muted">正在加载方舟规则…</p>}><ArkRules /></Suspense> : route === 'ark' && arkSession ? <Suspense fallback={<p className="muted">正在加载方舟牌桌…</p>}><ArkTable session={arkSession} onSessionChange={setArkSession} /></Suspense> : route === 'rules' ? <RulesPage hasMatch={Boolean(session)} /> : route === 'lobby' || (route === 'table' && !session) || (route === 'ark' && !arkSession) ? <MatchLobby
+        {route === 'assets' ? <Suspense fallback={<p className="muted">正在读取资源目录…</p>}><AssetLibrary /></Suspense> : route === 'ark-rules' ? <Suspense fallback={<p className="muted">正在加载方舟规则…</p>}><ArkRules /></Suspense> : route === 'ark' && arkSession ? <Suspense fallback={<p className="muted">正在加载方舟牌桌…</p>}><ArkTable session={arkSession} onSessionChange={setArkSession} /></Suspense> : route === 'rules' ? <RulesPage hasMatch={Boolean(session)} /> : route === 'lobby' || (route === 'table' && !session) || (route === 'ark' && !arkSession) ? <MatchLobby
           currentMatch={session ? { playerCount: session.state.players.length, round: session.state.round, roundLimit: session.state.roundLimit, finished: session.state.phase === 'finished' } : null}
           arkMatch={arkSession ? { playerCount: 2, round: arkSession.state.turns + 1, roundLimit: 0, finished: arkSession.state.phase === 'finished', map: arkSession.config.map } : null}
           onStart={startMatch}
         /> : route === 'layout' ? <LayoutLab /> : route === 'coverage' ? <>
-          <div className="page-intro"><span className="eyebrow">ARK NOVA / IMPLEMENTATION TRACKER</span><h1>让每一条规则，<br />都有据可查。</h1><p>资料覆盖、程序实现与人工复核分别记录。方舟首个可玩版已开放，仍使用限定牌池；完整基础版尚未验收。</p></div>
+          <div className="page-intro"><span className="eyebrow">ARK NOVA / IMPLEMENTATION TRACKER</span><h1>让每一条规则，<br />都有据可查。</h1><p>资料覆盖、程序实现与人工复核分别记录。基础 235 张内容均已接入；完整基础版人工试玩与逐卡复核尚未验收。</p></div>
           <div className="coverage-counters">{arkCoverage.targets.map(target => <div className="panel coverage-counter" key={target.category}><span>{target.label}</span><strong>{arkCoverage.cards.filter(card => card.category === target.category && card.implemented).length}<small> / {target.expected}</small></strong><span className="tiny">规则实现数量</span></div>)}</div>
           <div className="panel coverage-panel"><SectionHeading eyebrow="RULE TRACEABILITY" title="双人基础版规则矩阵" extra={<span className="pill">地图 A / 0 / 1 / 2 · 阶段四</span>} />
             <table><thead><tr><th>规则</th><th>依据</th><th>实现进度</th></tr></thead><tbody>{arkCoverage.rules.map(rule => <tr key={rule.id}><td><strong>{rule.label}</strong><small>{rule.id}</small></td><td>{rule.source}</td><td><span className={`pill ${rule.status === 'tested' ? 'green' : 'subtle'}`}>{rule.status === 'tested' ? '已测试 · 待人工核对' : '尚未实现'}</span></td></tr>)}</tbody></table>

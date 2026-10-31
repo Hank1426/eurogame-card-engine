@@ -3,14 +3,14 @@ import { useAction } from './index.js';
 import { DECK_PROJECTS, zooCard } from './cards.js';
 import { buildingCells } from './board.js';
 import { cardActionTable } from './foundation.js';
-import { finalCardPoints, housingError, projectById, projectRequirementError, requirementError, tagsOf } from './rules.js';
+import { animalCost, canFlock, finalCardPoints, housingError, projectById, projectRequirementError, requirementError, tagsOf } from './rules.js';
 import type { ArkCommand, ArkPlayer, ArkView } from './types.js';
 
 function cardValue(player: ArkPlayer, id: string): number {
   const card = zooCard(id);
   if (card.kind === 'project') {
-    const spec = DECK_PROJECTS.find(project => project.id === id)!;
-    const ready = spec.thresholds.some((_, tier) => spec.mode === 'release'
+    const spec = projectById(id);
+    const ready = spec.thresholds.some((_, tier) => DECK_PROJECTS.find(project => project.id === id)?.mode === 'release'
       ? player.animals.some(animal => !projectRequirementError(player, id, tier, animal)) : !projectRequirementError(player, id, tier));
     return ready ? 15 : 3;
   }
@@ -43,15 +43,27 @@ export function chooseArkCommand(view: ArkView, decision: Decision<ArkCommand>):
     const discard = pending.prompt.includes('弃除') && pending.kind !== 'final';
     ranked.sort((left, right) => {
       const value = (candidate: typeof left): number => {
-        if (candidate.card && pending.kind === 'final') return finalCardPoints(view, player, candidate.card);
+        if (candidate.card && pending.kind === 'final') return -finalCardPoints(view, player, candidate.card);
+        if (candidate.card && /^(00[1-9]|010|011)$/.test(candidate.card)) return finalCardPoints(view, player, candidate.card);
         if (candidate.card) return (discard ? -1 : 1) * cardValue(player, candidate.card);
         if (candidate.id === 'worker') return player.workers < 2 ? 20 : 5;
         if (candidate.id.startsWith('repeat-')) return 15 - Number(candidate.id.split('-')[1]);
         if (candidate.id === 'skip') return 0;
         if (candidate.id.startsWith('transfer-')) return 20;
         if (candidate.id.startsWith('boost-')) return candidate.id.endsWith('-5') ? 20 : 0;
+        if (candidate.id.startsWith('extra-')) {
+          if (candidate.id.startsWith('extra-x-')) return -1;
+          const action = candidate.id.split('-')[1]!;
+          return ({ animals: 10, association: 9, sponsors: player.money < 15 ? 12 : 7, cards: 7, build: 8 }[action] ?? 0) - Number(candidate.id.split('-')[2]) * 2;
+        }
         if (candidate.id === 'printed') return 10;
         if (candidate.id.startsWith('sponsor-')) return 8;
+        if (candidate.id === 'attack-first') return 15;
+        if (candidate.id === 'card') return player.hand.length > 3 ? 8 : 2;
+        if (candidate.id === 'money') return player.money > 15 ? 9 : 1;
+        if (candidate.id.startsWith('unique-')) return 20;
+        if (candidate.id.startsWith('engineer-')) return player.money > 15 ? 4 : -1;
+        if (candidate.id === 'small' || candidate.id === 'large') return player.hand.filter(id => zooCard(id).kind === 'animal' && (candidate.id === 'small' ? zooCard(id).size <= 2 : zooCard(id).size >= 4)).length;
         if (candidate.id.startsWith('free-')) return 8;
         if (candidate.id.startsWith('posture-')) return 8;
         if (['science', 'reputation', 'hand'].includes(candidate.id)) return candidate.id === 'science' && (tagsOf(player).science ?? 0) < 2 ? 12 : 8;
@@ -89,12 +101,19 @@ export function chooseArkCommand(view: ArkView, decision: Decision<ArkCommand>):
     return { type: 'resolve', choiceId: pending.id, options: ranked.slice(0, Math.max(pending.min, Math.min(pending.max, ranked.length))).map(option => option.id) };
   }
   const desired = desiredAnimals(player);
-  const missingHousing = desired.filter(id => !player.buildings.some(building => !housingError(building, id, player.map)));
+  const missingHousing = desired.filter(id => !canFlock(player, id) && !player.buildings.some(building => !housingError(building, id, player.map, player.sponsors.includes('219'))));
   function score(command: ArkCommand): number {
     if (command.type === 'begin') {
-      const strength = player!.row.indexOf(command.action) + 1 + command.spendX;
+      const strength = player!.row.indexOf(command.action) + 1 + command.spendX - (view.constriction[player!.id]?.includes(command.action) ? 2 : 0);
       let value: number;
-      if (command.action === 'animals') value = 55;
+      if (command.action === 'animals') {
+        const reserve = view.venom[player!.id]?.length && !view.venom[player!.id]?.includes('animals') ? 2 : 0;
+        const affordableWithReserve = [...player!.hand, ...(player!.upgrades.includes('animals') ? view.market.filter(id => id !== null) : [])]
+          .some(id => zooCard(id).kind === 'animal' && !requirementError(player!, id) &&
+            (canFlock(player!, id) || player!.buildings.some(building => !housingError(building, id, player!.map, player!.sponsors.includes('219')))) &&
+            animalCost(view, player!, id, player!.hand.includes(id) ? 'hand' : 'market') + reserve <= player!.money);
+        value = affordableWithReserve ? 55 : -100;
+      }
       else if (command.action === 'association') {
         const project = [...view.projects, ...view.activeProjects,
           ...player!.hand.filter(id => zooCard(id).kind === 'project').map(id => ({ id, blocked: -1, claimed: [null, null, null] }))
@@ -120,9 +139,9 @@ export function chooseArkCommand(view: ArkView, decision: Decision<ArkCommand>):
         const playValue = sponsors.reduce((maximum, id) => Math.max(maximum, 18 + cardValue(player!, id) * 1.5), 0);
         value = Math.max(playValue, player!.money < 10 ? 32 + strength : player!.money < 20 ? 12 + strength : 1);
       }
-      return value - command.spendX * 2 + (command.useDouble ? 3 : 0);
+      return value - command.spendX * 2 + (command.useDouble ? 3 : 0) + (view.venom[player!.id]?.includes(command.action) ? player!.money < 15 ? 180 : 5 : 0);
     }
-    if (command.type === 'animal') return 50 + cardValue(player!, command.card);
+    if (command.type === 'animal') return 50 + cardValue(player!, command.card) - (view.venom[player!.id]?.length && animalCost(view, player!, command.card, command.source) + 2 > player!.money ? 150 : 0);
     if (command.type === 'build') {
       const cells = buildingCells(command.kind, command, command.rotation, command.flip);
       const matches = desired.filter(id => affordable(player!, id) && !housingError({ id: 'draft', kind: command.kind, cells, animals: [] }, id, player!.map));
@@ -145,7 +164,7 @@ export function chooseArkCommand(view: ArkView, decision: Decision<ArkCommand>):
     if (command.type === 'income') return player!.money < 15 ? 28 : 2;
     if (command.type === 'draw') return command.source === 'deck' ? 7 : cardValue(player!, command.card);
     if (command.type === 'snap') return cardValue(player!, command.card) + 1;
-    if (command.type === 'take-x') return command.action === player!.row[0] ? 0 : -1;
+    if (command.type === 'take-x') return (command.action === player!.row[0] ? 0 : -1) + (view.venom[player!.id]?.includes(command.action) ? player!.money < 15 ? 190 : 45 : 0);
     if (command.type === 'finish') return 0;
     return -5;
   }

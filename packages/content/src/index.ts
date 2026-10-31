@@ -72,6 +72,7 @@ export function getCard(instanceId: string): Card {
 export const coverageSchema = z.object({
   rulesVersion: z.string(),
   implementedIds: z.record(z.string(), z.array(z.string())).default({}),
+  testedCategories: z.array(z.enum(['animal', 'sponsor', 'project', 'base-project', 'endgame'])).default([]),
   status: z.enum(['not-playable', 'experimental', 'complete']),
   targets: z.array(z.object({ category: z.string(), label: z.string(), expected: z.number().int().positive() }).strict()),
   cards: z.array(z.object({
@@ -92,7 +93,7 @@ export const arkCoverage = {
     ...parsedCoverage.cards,
     ...Object.entries(parsedCoverage.implementedIds).flatMap(([category, ids]) => ids.map(id => ({
       id, category, source: '规则 V2.0 与参考快照 6f67a11；首版限定机制，待逐卡人工复核',
-      entered: true, implemented: true, tested: false, reviewed: false
+      entered: true, implemented: true, tested: parsedCoverage.testedCategories.includes(category as 'animal' | 'sponsor'), reviewed: false
     })))
   ]
 };

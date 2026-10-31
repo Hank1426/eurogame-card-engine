@@ -189,9 +189,9 @@ describe('阶段四 · 独立地图与特殊规则', () => {
 });
 
 describe('阶段四 · 二十一张新动物及能力族', () => {
-  it('新牌池为 98 动物与 32 赞助商，卡牌全部有明确能力', () => {
-    expect(ZOO_CARDS.filter(card => card.kind === 'animal')).toHaveLength(98);
-    expect(ZOO_CARDS.filter(card => card.kind === 'sponsor')).toHaveLength(32);
+  it('阶段四牌池继续保留，新增牌不能移除既有能力', () => {
+    expect(ZOO_CARDS.filter(card => card.kind === 'animal').length).toBeGreaterThanOrEqual(98);
+    expect(ZOO_CARDS.filter(card => card.kind === 'sponsor').length).toBeGreaterThanOrEqual(32);
     expect(zooCard('510').specialHousing).toEqual({ kind: 'aviary', space: 1 });
     expect(zooCard('516').specialHousing).toBeUndefined();
     expect(zooCard('524').tags).toEqual(['pet']);

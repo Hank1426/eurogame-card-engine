@@ -1,0 +1,36 @@
+.asset-library { display: grid; gap: 22px; color: #2a4539; padding-bottom: 28px; }
+.asset-library-heading { display: flex; gap: 24px; justify-content: space-between; align-items: center; }
+.asset-library-heading h1 { font: 32px "Songti SC", SimSun, serif; margin: 10px 0; }
+.asset-library-heading p, .asset-source p, .asset-builtin p { color: #596e60; font-size: 12px; line-height: 1.8; max-width: 760px; }
+.asset-counters { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.asset-counters > div { display: grid; gap: 9px; padding: 19px; }
+.asset-counters strong { font: 28px Georgia, serif; }
+.asset-counters span { font-size: 12px; color: #5f7162; }
+.asset-source, .asset-builtin { display: flex; gap: 16px; align-items: center; padding: 20px; }
+.asset-source > div { flex: 1; }
+.asset-source strong, .asset-builtin strong { font-size: 14px; }
+.asset-source p, .asset-builtin p { margin-top: 7px; }
+.asset-source small { display: block; color: #6b7967; font-size: 10px; margin-top: 7px; }
+.asset-builtin { justify-content: space-between; }
+.asset-builtin > div:last-child { display: flex; gap: 11px; flex-wrap: wrap; color: #345d48; }
+.asset-builtin .ark-icon { display: inline-flex; width: 26px; height: 26px; }
+.asset-builtin .ark-icon svg { width: 100%; height: 100%; }
+.asset-filters { display: flex; align-items: end; gap: 16px; }
+.asset-filters > label:first-child { flex: 1; }
+.asset-filters > span { font-size: 12px; padding: 12px 0; }
+.asset-file-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.asset-file { overflow: hidden; min-width: 0; }
+.asset-thumbnail { height: 138px; background: #e5ecdd; }
+.asset-thumbnail img { width: 100%; height: 100%; object-fit: cover; }
+.asset-file > div:last-child { padding: 15px; }
+.asset-file h2 { font-size: 14px; margin: 5px 0 10px; overflow-wrap: anywhere; }
+.asset-file p { font-size: 11px; line-height: 1.9; color: #5c705e; }
+.asset-file code { font-size: 10px; display: inline-block; margin-top: 8px; }
+.asset-atlas-guide, .asset-issues, .asset-empty { padding: 20px; }
+.asset-atlas-guide h2 { font-size: 15px; margin-bottom: 12px; }
+.asset-atlas-guide p { display: flex; flex-wrap: wrap; gap: 20px; font-size: 11px; line-height: 1.9; margin: 8px 0; }
+.asset-atlas-guide p:last-child { color: #6e765e; margin-top: 16px; }
+.asset-issues p { font-size: 11px; line-height: 1.8; margin-top: 8px; }
+.asset-empty { font-size: 12px; line-height: 1.8; }
+@media (max-width: 1100px) { .asset-file-grid { grid-template-columns: 1fr 1fr; } .asset-source { flex-wrap: wrap; } }
+@media (max-width: 650px) { .asset-counters { grid-template-columns: 1fr 1fr; } .asset-file-grid { grid-template-columns: 1fr; } .asset-library-heading, .asset-builtin { flex-wrap: wrap; } }

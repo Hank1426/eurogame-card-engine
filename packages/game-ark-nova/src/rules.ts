@@ -3,6 +3,7 @@ import { actionStrength } from './index.js';
 import { ANIMAL_TAGS, BASE_PROJECTS, DECK_PROJECTS, CONTINENTS, FINAL_CARDS, zooCard, type DeckProject } from './cards.js';
 import { adjacentTerrain, housingCapacity, buildingCells, BUILDING_SHAPES, BUILDING_SUPPLY, mapCells, placementError, type Building, type BuildingKind, type MapId } from './board.js';
 import type { ArkCommand, ArkPlayer, ArkState } from './types.js';
+import { uniqueKind } from './unique-buildings.js';
 
 export const UNIVERSITY_NAMES: Record<string, string> = { hand: '大学：手牌上限 5 · 声望 +1', science: '大学：研究图标 ×2', reputation: '大学：研究 ×1 · 声望 +2' };
 export const PROJECT_REWARDS = ['snap', 'free-2', 'income-5', 'income-cp', 'draw-2', 'money-12', 'x-3'] as const;
@@ -44,19 +45,26 @@ export function requirementError(player: ArkPlayer, cardId: string): string | nu
   const tags = tagsOf(player);
   const counts: Record<string, number> = {};
   for (const requirement of card.requirements) counts[requirement] = (counts[requirement] ?? 0) + 1;
+  let ignored = card.kind === 'animal' && card.size >= 4 && player.sponsors.includes('263') ? 1 : 0;
   for (const [tag, count] of Object.entries(counts)) {
+    let missing: number;
     if (tag === 'animalsII' || tag === 'sponsorsII') {
-      if (!player.upgrades.includes(tag === 'animalsII' ? 'animals' : 'sponsors')) return `需要${tag === 'animalsII' ? '动物' : '赞助商'}行动 II。`;
+      missing = Number(!player.upgrades.includes(tag === 'animalsII' ? 'animals' : 'sponsors'));
     } else if (tag === 'Partner Zoo') {
-      if (!card.tags.some(continent => player.partners.includes(continent))) return '需要该动物起源大洲的合作动物园。';
-    } else if ((tags[tag] ?? 0) < count) return `未满足 ${tag} ×${count} 的前置条件。`;
+      missing = card.kind === 'animal' ? Number(!card.tags.some(continent => player.partners.includes(continent))) : Math.max(0, count - player.partners.length);
+    } else if (tag === 'appeal') missing = Number(player.appeal > 25);
+    else if (tag === 'reputation') missing = Number(player.reputation < (card.id === '227' || card.id === '263' ? 6 : 3));
+    else missing = Math.max(0, count - (tags[tag] ?? 0));
+    if (missing > ignored) return tag === 'animalsII' || tag === 'sponsorsII' ? `需要${tag === 'animalsII' ? '动物' : '赞助商'}行动 II。` : tag === 'Partner Zoo' ? card.kind === 'animal' ? '需要该动物起源大洲的合作动物园。' : `需要 ${count} 个合作动物园。` : tag === 'appeal' ? '此牌要求魅力不超过 25。' : tag === 'reputation' ? `此牌要求至少 ${card.id === '227' || card.id === '263' ? 6 : 3} 声望。` : `未满足 ${tag} ×${count} 的前置条件。`;
+    ignored -= missing;
   }
+  if (card.kind === 'animal' && player.sponsors.includes('227') && player.animalFocus && (player.animalFocus === 'small' ? card.size >= 4 : card.size <= 2)) return '此动物与世界动物园协会特别任务的方向冲突。';
   return null;
 }
 export function reputationRange(reputation: number): number {
   return reputation >= 15 ? 6 : reputation >= 12 ? 5 : reputation >= 9 ? 4 : reputation >= 6 ? 3 : reputation >= 3 ? 2 : 1;
 }
-export function animalCost(state: ArkState, player: ArkPlayer, cardId: string, source: 'hand' | 'market'): number {
+export function animalCost(state: Pick<ArkState, 'market'>, player: ArkPlayer, cardId: string, source: 'hand' | 'market'): number {
   const card = zooCard(cardId);
   const discount = card.tags.filter(tag => player.partners.includes(tag)).length * 3 +
     (card.size <= 2 && player.sponsors.includes('229') ? 3 : 0) +
@@ -71,7 +79,7 @@ export function specialSpace(cardId: string, kind: BuildingKind): number | null 
 export function buildingUsedSpace(building: Building): number {
   return building.occupancy ?? (building.kind.startsWith('enclosure') ? Number(building.animals.length > 0) : building.animals.reduce((total, id) => total + (specialSpace(id, building.kind) ?? 0), 0));
 }
-export function housingError(building: Building, cardId: string, map: MapId = 'A'): string | null {
+export function housingError(building: Building, cardId: string, map: MapId = 'A', ignoreTerrain = false): string | null {
   const card = zooCard(cardId);
   if (card.kind !== 'animal') return '保护项目或赞助商不能安置在饲养区。';
   if (card.tags.includes('pet')) {
@@ -83,14 +91,19 @@ export function housingError(building: Building, cardId: string, map: MapId = 'A
   } else {
     if (!building.kind.startsWith('enclosure') || buildingUsedSpace(building) > 0 || housingCapacity(building, map) < card.size) return '需要足够大的闲置标准饲养区。';
   }
-  if (adjacentTerrain(building.cells, 'water', map) < card.water) return `需要邻接 ${card.water} 个不同水域格。`;
-  if (adjacentTerrain(building.cells, 'rock', map) < card.rock) return `需要邻接 ${card.rock} 个不同岩石格。`;
+  if (!ignoreTerrain && adjacentTerrain(building.cells, 'water', map) < card.water) return `需要邻接 ${card.water} 个不同水域格。`;
+  if (!ignoreTerrain && adjacentTerrain(building.cells, 'rock', map) < card.rock) return `需要邻接 ${card.rock} 个不同岩石格。`;
   return null;
+}
+export function canFlock(player: ArkPlayer, cardId: string): boolean {
+  const card = zooCard(cardId);
+  return card.abilities.some(ability => ability.key === 'FLOCK_ANIMAL') &&
+    player.animals.some(id => id !== cardId && zooCard(id).tags.includes('herbivore') && zooCard(id).size >= card.size);
 }
 export function freedEnclosures(player: ArkPlayer, animal: string): Building[] {
   const card = zooCard(animal);
   const eligible = player.buildings.filter(building => building.kind.startsWith('enclosure') && buildingUsedSpace(building) > 0 && housingCapacity(building, player.map) >= card.size);
-  const full = eligible.filter(building => adjacentTerrain(building.cells, 'water', player.map) >= card.water && adjacentTerrain(building.cells, 'rock', player.map) >= card.rock);
+  const full = eligible.filter(building => player.sponsors.includes('219') || adjacentTerrain(building.cells, 'water', player.map) >= card.water && adjacentTerrain(building.cells, 'rock', player.map) >= card.rock);
   const candidates = full.length ? full : eligible;
   const minimum = Math.min(...candidates.map(building => housingCapacity(building, player.map)));
   return candidates.filter(building => housingCapacity(building, player.map) === minimum);
@@ -159,11 +172,12 @@ export function donationCost(donations: number): number {
 export function handLimit(player: ArkPlayer): number {
   return player.universities.includes('hand') ? 5 : 3;
 }
-export function buildCommands(state: ArkState, player: ArkPlayer, sizeLimit: number, upgraded: boolean, built: BuildingKind[] = [], maximumPerKind = 12): Extract<ArkCommand, { type: 'build' }>[] {
+export function buildCommands(state: ArkState, player: ArkPlayer, sizeLimit: number, upgraded: boolean, built: BuildingKind[] = [], maximumPerKind = 12, waiveSpecialUpgrade = false): Extract<ArkCommand, { type: 'build' }>[] {
   const output: Extract<ArkCommand, { type: 'build' }>[] = [];
   const occupied = new Set(player.buildings.flatMap(building => building.cells.map(hexKey)));
-  const candidates = mapCells(player.map).filter(cell => cell.terrain === 'land' && !occupied.has(hexKey(cell)));
+  const candidates = mapCells(player.map).filter(cell => (cell.terrain === 'land' || player.sponsors.includes('219')) && !occupied.has(hexKey(cell)));
   for (const kind of Object.keys(BUILDING_SHAPES) as BuildingKind[]) {
+    if (kind.startsWith('unique-')) continue;
     if (built.includes(kind) || BUILDING_SHAPES[kind].length > sizeLimit || BUILDING_SHAPES[kind].length * 2 > player.money) continue;
     if (state.players.flatMap(candidate => candidate.buildings).filter(building => building.kind === kind).length >= BUILDING_SUPPLY[kind]) continue;
     const seen = new Set<string>();
@@ -174,7 +188,7 @@ export function buildCommands(state: ArkState, player: ArkPlayer, sizeLimit: num
         const key = cells.map(hexKey).sort().join('/');
         if (seen.has(key)) continue;
         seen.add(key);
-        if (!placementError(player.buildings, kind, cells, upgraded, player.map)) {
+        if (!placementError(player.buildings, kind, cells, upgraded, player.map, waiveSpecialUpgrade, player.sponsors.includes('219'))) {
           output.push({ type: 'build', kind, q: cell.q, r: cell.r, rotation, flip });
           if (++count >= maximumPerKind) break placements;
         }
@@ -185,7 +199,25 @@ export function buildCommands(state: ArkState, player: ArkPlayer, sizeLimit: num
 }
 export function allTerrainConnected(player: ArkPlayer, terrain: 'water' | 'rock'): boolean {
   const adjacent = new Set(player.buildings.flatMap(building => building.cells.flatMap(hexNeighbors)).map(hexKey));
-  return mapCells(player.map).filter(cell => cell.terrain === terrain).every(cell => adjacent.has(hexKey(cell)));
+  const occupied = new Set(player.buildings.flatMap(building => building.cells).map(hexKey));
+  return mapCells(player.map).filter(cell => cell.terrain === terrain && !occupied.has(hexKey(cell))).every(cell => adjacent.has(hexKey(cell)));
+}
+export function uniqueCommands(state: ArkState, player: ArkPlayer, card: string, maximum = Infinity): Extract<ArkCommand, { type: 'build' }>[] {
+  const kind = uniqueKind(card);
+  if (!kind || state.players.some(candidate => candidate.buildings.some(building => building.kind === kind))) return [];
+  const output: Extract<ArkCommand, { type: 'build' }>[] = [];
+  const seen = new Set<string>();
+  for (const anchor of mapCells(player.map)) for (let rotation = 0; rotation < 6; rotation += 1) {
+    const cells = buildingCells(kind, anchor, rotation, false);
+    const key = cells.map(hexKey).sort().join('/');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (!placementError(player.buildings, kind, cells, player.upgrades.includes('build'), player.map, false, player.sponsors.includes('219'))) {
+      output.push({ type: 'build', kind, q: anchor.q, r: anchor.r, rotation, flip: false });
+      if (output.length >= maximum) return output;
+    }
+  }
+  return output;
 }
 export function finalCardPoints(state: Pick<ArkState, 'players'>, player: ArkPlayer, id: string): number {
   const final = FINAL_CARDS.find(card => card.id === id);

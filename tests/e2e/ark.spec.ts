@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
+import { BUILTIN_CATALOG } from '../../apps/web/asset-catalog.js';
 import { createSession, exportArchive } from '@eurogame/engine-core';
 import { arkGame, arkActor, chooseArkCommand, zooCard, projectById, PROJECT_REWARD_NAMES, ACTION_NAMES, type ArkSession } from '@eurogame/game-ark-nova';
 import { arkSubmit, preparedArk, naturalCheckpoint, specialHallCheckpoint, terrainCheckpoint } from './ark-checkpoints.js';
@@ -229,8 +230,8 @@ test('地形验收：截图五格区只高亮水域，合法五格区同时满�
     await expect(page.locator('.ark-map .rock.adjacent-terrain')).toHaveCount(valid ? 1 : 0);
     await expect(page.locator('.ark-map .water.adjacent-terrain')).toHaveCount(valid ? 1 : 2);
     await expect(page.locator('.ark-map .amenity-label')).toContainText('贩售亭');
-    await expect(page.getByRole('button', { name: '确认安置动物', exact: true })).toBeDisabled();
-    await expect(page.locator('.ark-confirm-area .validation')).toContainText('请先选择一张行动卡');
+    await expect(page.getByRole('button', { name: '开始动物行动', exact: true })).toBeDisabled();
+    await expect(page.locator('.ark-confirm-area .validation')).toContainText('动物行动 II');
     await expect(page.locator('.ark-confirm-area .validation')).toBeInViewport();
   }
 });
@@ -243,13 +244,13 @@ test('素材验收：保护项目图集可载入，缺少参考目录时仍有�
     await importGame(page, preparedArk(42));
     const image = page.locator('.ark-project-art .ark-art-sprite').first();
     await expect(image).toBeVisible();
-    await expect(image.locator('img')).toHaveJSProperty('complete', true);
-    expect(await image.locator('img').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(2262);
+    await expect(page.locator('.ark-project-art .ark-artwork').first()).toHaveAttribute('data-asset-status', 'ready');
+    await expect(page.locator('.ark-icon-sprite img, .ark-art-sprite img')).toHaveCount(0);
   }
   for (const path of ['/__ark_reference__/%2e%2e%2fpackage.json', '/__ark_reference__/%ZZ', '/__ark_reference__/maps/plan0.jpg']) {
     expect((await request.get(path)).status()).toBe(404);
   }
-  await page.route('**/__ark_reference__/manifest.json', route => route.fulfill({ json: {} }));
+  await page.route('**/__ark_reference__/catalog.json*', route => route.fulfill({ json: BUILTIN_CATALOG }));
   await importGame(page, preparedArk(42));
   await expect(page.locator('.ark-project-art .ark-art-fallback').first()).toBeVisible();
   await expect(page.locator('.ark-map .amenity-label')).toContainText('贩售亭');
@@ -319,7 +320,7 @@ test('阶段四验收：正常局调度在动物行动归位后将指定卡移�
 
 test('阶段四验收：多个赞助商效果的结算顺序可恢复，选择后只提交一次', async ({ page }) => {
   test.setTimeout(60_000);
-  const session = naturalCheckpoint(current => current.state.pending?.actor === 'p1' && current.state.pending.prompt.includes('多个效果'));
+  const session = naturalCheckpoint(current => current.state.pending?.actor === 'p1' && current.state.pending.prompt.includes('多个效果'), [5]);
   await importGame(page, session);
   await expect(page.getByTestId('ark-choice-prompt')).toContainText('多个效果');
   const money = await page.getByTestId('ark-money').textContent();

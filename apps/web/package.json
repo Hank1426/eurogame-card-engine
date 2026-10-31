@@ -12,6 +12,7 @@
     "@eurogame/game-ark-nova": "workspace:*",
     "@eurogame/ui-kit": "workspace:*",
     "react": "19.3.1",
-    "react-dom": "19.3.1"
+    "react-dom": "19.3.1",
+    "zod": "4.6.7"
   }
 }

@@ -1,0 +1,29 @@
+{
+  "sourceCommit": "6f67a11b9a038d75bb327cd1abfe20165d6c0055",
+  "corrections": [
+    {
+      "id": "464",
+      "field": "rock",
+      "value": 0,
+      "reason": "参考快照把无岩石要求错误记作 NaN。独立卡图核对资料将 enclosure.rock 修正为 0；仍登记待人工卡面复核。",
+      "evidence": "https://github.com/collinfeng/ark-nova-ai/blob/main/data/overrides.json",
+      "reviewed": false
+    },
+    {
+      "id": "251",
+      "field": "water",
+      "value": 1,
+      "reason": "官方 Glossary p6：北极熊展独有建筑必须邻接至少一个水域。",
+      "evidence": "https://cdn.shopify.com/s/files/1/0947/3907/1278/files/Ark-Nova-Glossary.pdf?v=1754428544",
+      "reviewed": false
+    },
+    {
+      "id": "256",
+      "field": "appeal",
+      "value": 4,
+      "reason": "官方 Glossary p7：水上乐园入场获得 4 魅力。",
+      "evidence": "https://cdn.shopify.com/s/files/1/0947/3907/1278/files/Ark-Nova-Glossary.pdf?v=1754428544",
+      "reviewed": false
+    }
+  ]
+}

@@ -172,7 +172,7 @@ test('建造预览、旋转、扣费和撤销', async ({ page }) => {
 
 test('工程进度与本地参考资料保持独立', async ({ page }) => {
   await page.locator('nav a[href="#/coverage"]').click();
-  await expect(page.getByText('方舟首个可玩版已开放', { exact: false })).toBeVisible();
+  await expect(page.getByText('基础 235 张内容均已接入', { exact: false })).toBeVisible();
   await page.locator('nav a[href="#/catalog"]').click();
   await page.getByLabel('导入参考资料文件').setInputFiles({
     name: 'reference.json', mimeType: 'application/json',

@@ -1,0 +1,142 @@
+.ark-table, .ark-card-preview {
+  --ark-ink: #274438;
+  --ark-muted: #526455;
+  --ark-paper: #f7f6ed;
+  --ark-surface: #fffdf4;
+  --ark-active: #245b45;
+  --ark-border: #c6d2bc;
+  --ark-warning: #8e492c;
+  color: var(--ark-ink);
+}
+.ark-table .muted, .ark-table .ark-map-hint, .ark-table .ark-strip-heading small, .ark-table .ark-mini-heading small { color: var(--ark-muted); }
+.ark-table .muted { font-size: 12px; line-height: 1.65; }
+.ark-table .ark-game-heading h1 small, .ark-table .ark-table-status { color: #50634f; }
+.ark-table .ark-strip-heading strong { font-size: 12px; color: #304d39; }
+.ark-table .ark-strip-heading small { font-size: 10px; }
+.ark-table .ark-card { box-shadow: none; }
+.ark-table .ark-card-name { font-size: 12px; padding: 5px 7px; }
+.ark-table .ark-hand .ark-card-name { font-size: 12px; }
+.ark-table .ark-card:hover { box-shadow: none; border-color: #3d7758; }
+.ark-table .ark-info-tabs button { font-size: 11px; color: #536650; padding: 9px 3px; }
+.ark-table .ark-info-tabs button[aria-selected="true"] { color: #245b45; font-weight: 600; }
+.ark-table .ark-mini-heading strong { font-size: 12px; color: #355139; }
+.ark-table .ark-project-tiers strong { color: #435f35; font-size: 10px; }
+.ark-table .ark-project-tiers small { color: #5e7153; font-size: 9px; }
+.ark-table .ark-project-description { color: #526647; font-size: 10px; }
+.ark-table .ark-project-art strong { font-size: 11px; background: #243e31db; }
+.ark-table .ark-resource-bar { padding: 12px 14px; background: #e7eddf; }
+.ark-table .ark-resource-bar > div { position: relative; }
+.ark-table .ark-resource-bar b { color: #2d4b35; font-size: 17px; }
+.ark-resource-delta { position: absolute; right: 1px; top: -8px; font-size: 11px; font-weight: 700; color: #1c6743; background: #edf6e7; padding: 2px 4px; border-radius: 4px; pointer-events: none; animation: ark-resource-rise 1.3s ease-out both; z-index: 3; }
+.ark-resource-delta.negative { color: #8e492c; background: #f9ebdd; }
+@keyframes ark-resource-rise { 0% { opacity: 0; transform: translateY(5px); } 15%, 75% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-5px); } }
+.ark-operation-steps { display: flex; align-items: center; gap: 5px; margin-top: 9px; font-size: 10px; color: #61705a; }
+.ark-operation-steps span { background: #eef0e4; padding: 4px 7px; border-radius: 4px; }
+.ark-operation-steps .current { background: #e0ecda; color: #245b45; font-weight: 600; }
+.ark-operation-steps .done { color: #3f6147; }
+.ark-operation-steps i { font-style: normal; color: #64765a; }
+.ark-table .ark-confirm-area { padding: 11px 13px; background: #edf2e5; gap: 7px; }
+.ark-table .ark-confirm-area .primary { font-size: 12px; min-height: 38px; }
+.ark-table .ark-confirm-area .secondary { font-size: 11px; min-height: 34px; }
+.ark-table .ark-confirm-area .validation { font-size: 11px; }
+.ark-table .ark-confirm-area > small { font-size: 10px; color: #50634b; }
+.ark-table .ark-control-state strong { color: #2f533a; font-size: 13px; }
+.ark-table .ark-field-label { font-size: 11px; color: #465b3e; }
+.ark-table .ark-detail label { font-size: 11px; color: #465b3e; }
+.ark-table .ark-field-label small { color: #52694a; }
+.ark-table .ark-detail-art { height: 124px; }
+.ark-table .ark-card-effect { font-size: 12px; color: #405a3d; line-height: 1.65; }
+.ark-table .ark-control-scroll { padding: 13px; }
+.ark-table .ark-detail h2 { font-size: 24px; color: #284c35; }
+.ark-table .ark-condition { background: #ece9da; color: #574f32; border-color: #d5cdb2; }
+.ark-table .ark-condition.met { background: #e2ecda; border-color: #a9bf98; color: #285538; }
+.ark-table .ark-condition.unmet { background: #f6e8d9; border-color: #c99f7b; color: #8e492c; }
+.ark-table .ark-map-panel { position: relative; background: #e3e9d5; border-color: #b6c7a3; }
+.ark-table .ark-map-panel.is-placing { border-color: #467b57; box-shadow: inset 0 0 0 1px #73956a; }
+.ark-map-tools { position: absolute; right: 10px; top: 44px; display: flex; flex-direction: column; align-items: end; gap: 6px; z-index: 4; }
+.ark-map-tools > span { font-size: 10px; color: #375b3b; background: #f5f7e9eb; padding: 4px 6px; border-radius: 4px; max-width: 150px; text-align: right; }
+.ark-map-tools button { border: 1px solid #9db38e; border-radius: 5px; background: #fcfcef; color: #2c5537; min-height: 34px; min-width: 43px; padding: 5px 7px; font-size: 15px; }
+.ark-map-tools button:last-child { font-size: 10px; }
+.ark-map-tools kbd { font: 9px "Segoe UI", sans-serif; opacity: .8; }
+.ark-map-tools button:not(:disabled):hover { background: #dfeccb; border-color: #4e7d49; }
+.ark-anchor-dot { fill: #27754b; stroke: #fffbe5; stroke-width: 1.5; }
+.ark-placement-outline { stroke-width: 4.5; stroke-linejoin: round; }
+.ark-placement-outline.valid { stroke: #185f39; }
+.ark-placement-outline.invalid { stroke: #ab4a2b; stroke-dasharray: 7 4; }
+.ark-token-venom { position: absolute; top: 5px; right: 5px; font-size: 9px; color: #fff4d8; background: #8d4a66; border-radius: 50%; width: 19px; height: 19px; display: grid; place-items: center; pointer-events: none; }
+.ark-token-constriction { color: #8b422b; background: #f5d9b9; border-radius: 3px; padding: 1px 3px; }
+.ark-map-panel.is-placing .ark-hex > polygon:first-child { cursor: crosshair; }
+.ark-table .ark-map-legend { color: #4f6945; font-size: 9px; }
+.ark-table .ark-action-main { padding: 7px 5px 7px 26px; }
+.ark-table .ark-action-main strong { font-size: 13px; }
+.ark-table .ark-action-main .ark-icon { width: 25px; height: 25px; }
+.ark-table .ark-take-x { color: #4a6242; font-size: 10px; padding: 5px; }
+.ark-table .ark-action-strength { color: #425e36; }
+.ark-table .ark-action-card.current { outline-color: #235e40; }
+.ark-table .ark-choice-panel h2 { font-size: 18px; }
+.ark-table .ark-choice-panel select { width: 100%; margin: 8px 0; padding: 8px; font-size: 12px; }
+.ark-table .ark-choice-panel .ark-choice-options { grid-template-columns: 1fr; }
+.ark-table .ark-choice-panel .ark-choice-options:has(.ark-choice-card) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ark-table .ark-choice-option { color: #395a36; min-height: 52px; }
+.ark-table .ark-choice-option small { color: #5a704e; }
+.ark-table .ark-choice-tip { color: #3f653c; font-size: 12px; }
+.ark-table .ark-kind-label { color: #86612b; }
+.ark-table .ark-kind-label.sponsor { color: #376d83; }
+.ark-table .ark-kind-label.project { color: #426d2b; }
+.builtin-glyph.icon-water { color: #267c96; }
+.builtin-glyph.icon-rock { color: #706775; }
+.builtin-glyph.icon-predator, .builtin-glyph.icon-animals { color: #985343; }
+.builtin-glyph.icon-bird { color: #317e9e; }
+.builtin-glyph.icon-herbivore { color: #3a7758; }
+.builtin-glyph.icon-primate { color: #9b772a; }
+.builtin-glyph.icon-reptile { color: #725c8e; }
+.builtin-glyph.icon-kiosk { color: #885c3d; }
+.builtin-glyph.icon-pavilion { color: #527547; }
+.ark-card-preview { position: fixed; z-index: 50; width: 310px; max-height: min(470px, calc(100dvh - 24px)); overflow: hidden; pointer-events: none; border: 1px solid #7a9877; border-radius: 11px; background: #fcfaee; box-shadow: 0 12px 32px #203e3540; animation: ark-preview-in 150ms cubic-bezier(.2,.7,.3,1) both; }
+@keyframes ark-preview-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+.ark-preview-art { height: 145px; position: relative; }
+.ark-preview-art > span { position: absolute; bottom: 0; left: 0; right: 0; padding: 6px 12px; background: #294334dc; color: #fff9e5; font-size: 11px; }
+.ark-preview-body { padding: 13px; }
+.ark-preview-body h2 { font: 23px "Songti SC", SimSun, serif; margin-bottom: 9px; }
+.ark-preview-body > strong { display: block; font-size: 10px; margin: 12px 0 3px; color: #526c44; }
+.ark-preview-body p { font-size: 12px; line-height: 1.7; color: #3f5739; margin: 10px 0; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+.ark-preview-body > small { font-size: 10px; color: #5d7051; }
+.ark-preview-tags { display: flex; align-items: center; gap: 4px; }
+.ark-preview-tags > span:not(.ark-icon) { display: flex; align-items: center; gap: 2px; font-size: 12px; margin-left: 5px; }
+@media (min-width: 1100px) {
+  .ark-table .ark-play-layout { grid-template-rows: 113px minmax(240px, 1fr) 149px 72px; grid-template-columns: minmax(0, 1fr) 315px; gap: 9px 13px; }
+  .ark-table .ark-board-columns { grid-template-columns: minmax(0, 1.25fr) minmax(300px, .9fr); }
+  .ark-table .ark-market .ark-card-art { height: 53px; }
+  .ark-table .ark-market .ark-card-tags { top: 29px; }
+}
+@media (min-width: 1700px) {
+  .ark-table .ark-play-layout { grid-template-rows: 126px minmax(300px, 1fr) 163px 78px; grid-template-columns: minmax(0, 1fr) 336px; gap: 11px 17px; }
+  .ark-table .ark-board-columns { grid-template-columns: minmax(0, 1.25fr) minmax(380px, .9fr); }
+  .ark-table .ark-market .ark-card-art { height: 68px; }
+  .ark-table .ark-market .ark-card-tags { top: 44px; }
+  .ark-table .ark-project-art { height: 85px; }
+  .ark-table .ark-detail-art { height: 143px; }
+}
+@media (min-width: 1100px) and (max-height: 820px) {
+  .ark-table .ark-play-layout { grid-template-rows: 95px minmax(195px, 1fr) 127px 66px; gap: 7px 11px; grid-template-columns: minmax(0, 1fr) 296px; }
+  .ark-table .ark-market .ark-card-art { height: 43px; }
+  .ark-table .ark-market .ark-card-tags { top: 22px; }
+  .ark-table .ark-market .ark-card-name { padding: 3px 5px; font-size: 11px; }
+  .ark-table .ark-hand .ark-card-art { height: 40px; }
+  .ark-table .ark-hand .ark-card-tags { top: 18px; }
+  .ark-table .ark-hand .ark-card-name { padding: 3px 5px; }
+  .ark-table .ark-resource-bar { padding: 8px 11px; }
+  .ark-table .ark-control-state { padding: 8px 11px; }
+  .ark-operation-steps { margin-top: 6px; }
+  .ark-operation-steps span { padding: 3px 6px; }
+  .ark-table .ark-control-scroll { padding: 10px 11px; }
+  .ark-table .ark-detail-art { height: 91px; }
+  .ark-table .ark-confirm-area { padding: 9px 11px; }
+  .ark-table .ark-action-main strong { font-size: 12px; }
+  .ark-table .ark-action-main .ark-icon { width: 22px; height: 22px; }
+  .ark-table .ark-map-panel > .ark-map-hint { font-size: 8px; }
+}
+@media (max-width: 1099px) { .ark-map-tools { position: static; flex-direction: row; align-items: center; justify-content: center; padding-top: 6px; } .ark-map-tools > span { margin-right: auto; } }
+@media (prefers-reduced-motion: reduce) {
+  .ark-table *, .ark-card-preview { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

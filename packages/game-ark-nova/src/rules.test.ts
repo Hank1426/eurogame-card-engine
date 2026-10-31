@@ -41,6 +41,15 @@ function settleChoices(session: ArkSession): ArkSession {
   }
   return session;
 }
+function setPredatorProject(session: ArkSession) {
+  const existing = session.state.projects.find(project => project.id === '110');
+  if (existing) existing.blocked = 0;
+  else {
+    session.state.baseReserve.push(session.state.projects[0]!.id);
+    session.state.projects[0] = { id: '110', blocked: 0, claimed: [null, null, null] };
+    session.state.baseReserve = session.state.baseReserve.filter(id => id !== '110');
+  }
+}
 function reject(session: ArkSession, command: ArkCommand, message: string) {
   const before = exportArchive(session);
   const outcome = applyCommand(arkGame, session, { id: 'invalid', actor: arkActor(session.state), revision: session.state.revision, command });
@@ -202,7 +211,7 @@ describe('阶段二 · 协会、收入和升级', () => {
       giveCard(session, player, '405', 'animals');
       giveCard(session, player, '239', 'sponsors');
       player.row = ['animals', 'build', 'cards', 'sponsors', 'association'];
-      session.state.projects[0] = { id: '110', blocked: 0, claimed: [null, null, null] };
+      setPredatorProject(session);
       session = submit(session, { type: 'begin', action: 'association', spendX: 0 });
       reject(session, { type: 'association', task: 'project', target: '110', tier: 0, reward: 'income-cp', rewardFirst }, '封锁');
       session = submit(session, { type: 'association', task: 'project', target: '110', tier: 2, reward: 'income-cp', rewardFirst });
@@ -211,7 +220,7 @@ describe('阶段二 · 协会、收入和升级', () => {
       session = settleChoices(session);
       expect(session.state.players[0]!.conservation).toBe(3);
       expect(session.state.players[0]!.projectRewards).toContain('income-cp');
-      expect(session.state.projects[0]!.claimed[2]).toBe('p1');
+      expect(session.state.projects.find(project => project.id === '110')!.claimed[2]).toBe('p1');
     }
   });
   it('免费两格边缘奖励不扣费，并仍执行合法建造与覆盖奖励', () => {
@@ -220,7 +229,7 @@ describe('阶段二 · 协会、收入和升级', () => {
     giveCard(session, player, '405', 'animals');
     giveCard(session, player, '239', 'sponsors');
     player.row = ['animals', 'build', 'cards', 'sponsors', 'association'];
-    session.state.projects[0] = { id: '110', blocked: 0, claimed: [null, null, null] };
+    setPredatorProject(session);
     session = submit(session, { type: 'begin', action: 'association', spendX: 0 });
     session = submit(session, { type: 'association', task: 'project', target: '110', tier: 2, reward: 'free-2', rewardFirst: true });
     expect(session.state.pending?.prompt).toContain('免费建造');
@@ -300,6 +309,7 @@ describe('阶段二 · 休息与终局交叉', () => {
   it('入池卡牌没有非有限地形数或未知能力', () => {
     expect(zooCard('486').price).toBe(4);
     expect(zooCard('407').water).toBe(2);
-    expect(() => zooCard('464')).toThrow('不在已实现');
+    expect(zooCard('464').rock).toBe(0);
+    expect(Number.isFinite(zooCard('464').rock)).toBe(true);
   });
 });

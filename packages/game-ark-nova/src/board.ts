@@ -1,8 +1,9 @@
 import { hexKey, hexNeighbors, transformHexes, validatePlacement, type Hex } from '@eurogame/mechanisms';
+import { UNIQUE_BUILDINGS, uniqueSpec, type UniqueBuildingKind } from './unique-buildings.js';
 
 export const MAP_IDS = ['A', '0', '1', '2'] as const;
 export type MapId = typeof MAP_IDS[number];
-export type BuildingKind = 'enclosure-1' | 'enclosure-2' | 'enclosure-3' | 'enclosure-4' | 'enclosure-5' | 'kiosk' | 'pavilion' | 'petting' | 'reptile-house' | 'aviary';
+export type BuildingKind = 'enclosure-1' | 'enclosure-2' | 'enclosure-3' | 'enclosure-4' | 'enclosure-5' | 'kiosk' | 'pavilion' | 'petting' | 'reptile-house' | 'aviary' | UniqueBuildingKind;
 export type MapReward = 'money-5' | 'money-10' | 'draw-2' | 'x' | 'reputation-1' | 'reputation-2' | 'worker' | 'snap' | 'upgrade' | 'partner' | 'paid-sponsor' | 'clever';
 export interface MapCell extends Hex {
   column: number;
@@ -28,17 +29,21 @@ export const BUILDING_SHAPES: Record<BuildingKind, Hex[]> = {
   pavilion: [{ q: 0, r: 0 }],
   petting: [{ q: 0, r: 0 }, { q: 1, r: -1 }, { q: 2, r: -1 }],
   'reptile-house': [{ q: 0, r: 0 }, { q: 0, r: 1 }, { q: 1, r: 0 }, { q: 2, r: -1 }, { q: 2, r: 0 }],
-  aviary: [{ q: 0, r: 0 }, { q: 0, r: 1 }, { q: 1, r: 0 }, { q: 1, r: 1 }, { q: 2, r: -1 }]
+  aviary: [{ q: 0, r: 0 }, { q: 0, r: 1 }, { q: 1, r: 0 }, { q: 1, r: 1 }, { q: 2, r: -1 }],
+  ...Object.fromEntries(Object.entries(UNIQUE_BUILDINGS).map(([kind, spec]) => [kind, spec.cells])) as Record<UniqueBuildingKind, Hex[]>
 };
 export const BUILDING_NAMES: Record<BuildingKind, string> = {
   'enclosure-1': '1 格饲养区', 'enclosure-2': '2 格饲养区', 'enclosure-3': '3 格饲养区',
   'enclosure-4': '4 格饲养区', 'enclosure-5': '5 格饲养区', kiosk: '贩售亭', pavilion: '休憩亭', petting: '萌宠园',
-  'reptile-house': '爬行馆', aviary: '鸟禽馆'
+  'reptile-house': '爬行馆', aviary: '鸟禽馆',
+  ...Object.fromEntries(Object.entries(UNIQUE_BUILDINGS).map(([kind, spec]) => [kind, spec.name])) as Record<UniqueBuildingKind, string>
 };
 export const BUILDING_SUPPLY: Record<BuildingKind, number> = {
   'enclosure-1': 28, 'enclosure-2': 24, 'enclosure-3': 15, 'enclosure-4': 13, 'enclosure-5': 10,
-  kiosk: 34, pavilion: 34, petting: 4, 'reptile-house': 4, aviary: 4
+  kiosk: 34, pavilion: 34, petting: 4, 'reptile-house': 4, aviary: 4,
+  ...Object.fromEntries(Object.keys(UNIQUE_BUILDINGS).map(kind => [kind, 1])) as Record<UniqueBuildingKind, number>
 };
+export const BASIC_BUILDING_KINDS = Object.keys(BUILDING_SHAPES).filter(kind => !kind.startsWith('unique-')) as BuildingKind[];
 
 const rocks = new Set(['1:0', '1:1', '2:1', '3:0', '5:2', '6:4', '1:6']);
 const water = new Set(['2:0', '2:5', '3:6', '4:0', '5:4', '6:3', '7:0', '8:0', '8:1']);
@@ -122,20 +127,27 @@ export function hexDistance(first: Hex, second: Hex): number {
   return (Math.abs(first.q - second.q) + Math.abs(first.r - second.r) + Math.abs(first.q + first.r - second.q - second.r)) / 2;
 }
 
-export function placementError(buildings: Building[], kind: BuildingKind, cells: Hex[], upgraded: boolean, mapId: MapId = 'A'): string | null {
+export function placementError(buildings: Building[], kind: BuildingKind, cells: Hex[], upgraded: boolean, mapId: MapId = 'A', waiveSpecialUpgrade = false, diversity = false): string | null {
   const board = mapCells(mapId);
   const occupied = buildings.flatMap(building => building.cells);
   const shape = validatePlacement(board, occupied, cells, { q: 0, r: 0 }, false);
   if (shape) return shape;
   const map = new Map(board.map(cell => [hexKey(cell), cell]));
-  if (cells.some(cell => map.get(hexKey(cell))!.terrain !== 'land')) return '不能覆盖水域或岩石格。';
+  if (!diversity && cells.some(cell => map.get(hexKey(cell))!.terrain !== 'land')) return '不能覆盖水域或岩石格。';
   if (!upgraded && cells.some(cell => map.get(hexKey(cell))!.upgraded)) return '此格要求建造行动升级至 II。';
   const occupiedKeys = new Set(occupied.map(hexKey));
-  if (occupied.length && !cells.some(cell => hexNeighbors(cell).some(neighbor => occupiedKeys.has(hexKey(neighbor))))) return '建筑必须邻接已有建筑。';
+  const unique = uniqueSpec(kind);
+  if (occupied.length && !unique?.detached && !cells.some(cell => hexNeighbors(cell).some(neighbor => occupiedKeys.has(hexKey(neighbor))))) return '建筑必须邻接已有建筑。';
   if (!occupied.length && !cells.some(cell => hexNeighbors(cell).some(neighbor => !map.has(hexKey(neighbor))))) return '首座建筑必须覆盖至少一个地图边界格。';
   if (kind === 'kiosk' && buildings.some(building => building.kind === 'kiosk' && hexDistance(building.cells[0]!, cells[0]!) < 3)) return '贩售亭之间至少相距 3 格。';
   if (['petting', 'reptile-house', 'aviary'].includes(kind) && buildings.some(building => building.kind === kind)) return `每座动物园只能有一个${BUILDING_NAMES[kind]}。`;
-  if (['reptile-house', 'aviary'].includes(kind) && !upgraded) return '鸟禽馆与爬行馆需要建造行动 II。';
+  if (['reptile-house', 'aviary'].includes(kind) && !upgraded && !waiveSpecialUpgrade) return '鸟禽馆与爬行馆需要建造行动 II。';
+  if (unique) {
+    if (buildings.some(building => building.kind === kind)) return '独有建筑已经建成。';
+    if (!diversity && (adjacentTerrain(cells, 'water', mapId) < unique.water || adjacentTerrain(cells, 'rock', mapId) < unique.rock)) return '独有建筑不满足相邻水域／岩石要求。';
+    const all = new Set(board.map(hexKey));
+    if (cells.filter(cell => hexNeighbors(cell).some(neighbor => !all.has(hexKey(neighbor)))).length < unique.border) return `独有建筑须覆盖至少 ${unique.border} 个地图边界格。`;
+  }
   return null;
 }
 
@@ -150,7 +162,7 @@ export function adjacentTerrain(cells: Hex[], terrain: 'water' | 'rock', mapId: 
 export function kioskIncome(buildings: Building[]): number {
   return buildings.filter(building => building.kind === 'kiosk').reduce((total, kiosk) => {
     const adjacent = new Set(kiosk.cells.flatMap(hexNeighbors).map(hexKey));
-    return total + buildings.filter(building => building.kind !== 'kiosk' &&
+    return total + buildings.filter(building => building.id !== kiosk.id &&
       (!building.kind.startsWith('enclosure') || (building.occupancy ?? building.animals.length) > 0) &&
       building.cells.some(cell => adjacent.has(hexKey(cell)))).length;
   }, 0);

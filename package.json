@@ -7,7 +7,7 @@
   "engines": { "node": ">=24 <25", "pnpm": ">=10 <11" },
   "scripts": {
     "dev": "pnpm --filter @eurogame/web dev",
-    "build": "pnpm content:check && pnpm --filter @eurogame/web build",
+    "build": "pnpm content:check && pnpm assets:check && pnpm --filter @eurogame/web build && pnpm assets:audit",
     "preview": "pnpm --filter @eurogame/web preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
@@ -16,6 +16,9 @@
     "test:e2e": "playwright test",
     "content:check": "tsx tools/validate-content.ts",
     "content:import": "tsx tools/import-ark-source.ts",
+    "assets:check": "tsx tools/validate-assets.ts",
+    "assets:audit": "tsx tools/validate-assets.ts --dist",
+    "assets:inventory": "tsx tools/inventory-assets.ts",
     "ui:capture": "tsx tools/capture-ui.ts",
     "ui:capture:ark": "tsx tools/capture-ark-ui.ts",
     "simulate": "tsx apps/simulator/src/cli.ts",
