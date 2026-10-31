@@ -1,7 +1,7 @@
 import { hexKey, hexNeighbors } from '@eurogame/mechanisms';
 import { actionStrength } from './index.js';
 import { ANIMAL_TAGS, BASE_PROJECTS, DECK_PROJECTS, CONTINENTS, FINAL_CARDS, zooCard, type DeckProject } from './cards.js';
-import { adjacentTerrain, buildingCells, BUILDING_SHAPES, BUILDING_SUPPLY, mapCells, placementError, type Building, type BuildingKind, type MapId } from './board.js';
+import { adjacentTerrain, housingCapacity, buildingCells, BUILDING_SHAPES, BUILDING_SUPPLY, mapCells, placementError, type Building, type BuildingKind, type MapId } from './board.js';
 import type { ArkCommand, ArkPlayer, ArkState } from './types.js';
 
 export const UNIVERSITY_NAMES: Record<string, string> = { hand: '大学：手牌上限 5 · 声望 +1', science: '大学：研究图标 ×2', reputation: '大学：研究 ×1 · 声望 +2' };
@@ -9,10 +9,13 @@ export const PROJECT_REWARDS = ['snap', 'free-2', 'income-5', 'income-cp', 'draw
 export const PROJECT_REWARD_NAMES: Record<string, string> = {
   snap: '立即与每次休息拿取 1 张卡牌', 'free-2': '立即免费建造 2 格饲养区', 'income-5': '立即与每次休息获得 5 资金',
   'income-cp': '立即与每次休息获得 1 保护', 'draw-2': '立即抽取 2 张卡牌', 'money-12': '立即获得 12 资金', 'x-3': '立即获得 3 枚 X',
-  worker: '立即解锁一名事务员'
+  worker: '立即解锁一名事务员', 'income-sponsor': '立即与每次休息可按等级付费打出一张手牌赞助商'
 };
 export function projectRewardsFor(player: Pick<ArkPlayer, 'map'>): string[] {
-  return PROJECT_REWARDS.map(reward => reward === 'income-5' && player.map === '0' ? 'worker' : reward);
+  return PROJECT_REWARDS.map(reward =>
+    reward === 'income-5' && player.map === '0' ? 'worker' :
+    reward === 'income-cp' && player.map === '1' ? 'income-sponsor' :
+    reward === 'draw-2' && (player.map === '1' || player.map === '2') ? 'worker' : reward);
 }
 export function arkActor(state: ArkState): string {
   return state.pending?.actor ?? state.activePlayer;
@@ -27,7 +30,7 @@ export function tagsOf(player: ArkPlayer): Record<string, number> {
   const add = (tag: string, count = 1) => { counts[tag] = (counts[tag] ?? 0) + count; };
   for (const id of [...player.animals, ...player.sponsors]) {
     const card = zooCard(id);
-    card.tags.forEach(tag => add(tag));
+    card.tags.filter(tag => tag !== 'water' && tag !== 'rock').forEach(tag => add(tag));
     add('water', card.water);
     add('rock', card.rock);
   }
@@ -42,8 +45,8 @@ export function requirementError(player: ArkPlayer, cardId: string): string | nu
   const counts: Record<string, number> = {};
   for (const requirement of card.requirements) counts[requirement] = (counts[requirement] ?? 0) + 1;
   for (const [tag, count] of Object.entries(counts)) {
-    if (tag === 'animalsII') {
-      if (!player.upgrades.includes('animals')) return '需要动物行动 II。';
+    if (tag === 'animalsII' || tag === 'sponsorsII') {
+      if (!player.upgrades.includes(tag === 'animalsII' ? 'animals' : 'sponsors')) return `需要${tag === 'animalsII' ? '动物' : '赞助商'}行动 II。`;
     } else if (tag === 'Partner Zoo') {
       if (!card.tags.some(continent => player.partners.includes(continent))) return '需要该动物起源大洲的合作动物园。';
     } else if ((tags[tag] ?? 0) < count) return `未满足 ${tag} ×${count} 的前置条件。`;
@@ -78,7 +81,7 @@ export function housingError(building: Building, cardId: string, map: MapId = 'A
     if (space === null) return '该动物卡不允许放入此特殊饲养区。';
     if (buildingUsedSpace(building) + space > 5) return '特殊饲养区剩余容量不足。';
   } else {
-    if (!building.kind.startsWith('enclosure') || buildingUsedSpace(building) > 0 || building.cells.length < card.size) return '需要足够大的闲置标准饲养区。';
+    if (!building.kind.startsWith('enclosure') || buildingUsedSpace(building) > 0 || housingCapacity(building, map) < card.size) return '需要足够大的闲置标准饲养区。';
   }
   if (adjacentTerrain(building.cells, 'water', map) < card.water) return `需要邻接 ${card.water} 个不同水域格。`;
   if (adjacentTerrain(building.cells, 'rock', map) < card.rock) return `需要邻接 ${card.rock} 个不同岩石格。`;
@@ -86,11 +89,11 @@ export function housingError(building: Building, cardId: string, map: MapId = 'A
 }
 export function freedEnclosures(player: ArkPlayer, animal: string): Building[] {
   const card = zooCard(animal);
-  const eligible = player.buildings.filter(building => building.kind.startsWith('enclosure') && buildingUsedSpace(building) > 0 && building.cells.length >= card.size);
+  const eligible = player.buildings.filter(building => building.kind.startsWith('enclosure') && buildingUsedSpace(building) > 0 && housingCapacity(building, player.map) >= card.size);
   const full = eligible.filter(building => adjacentTerrain(building.cells, 'water', player.map) >= card.water && adjacentTerrain(building.cells, 'rock', player.map) >= card.rock);
   const candidates = full.length ? full : eligible;
-  const minimum = Math.min(...candidates.map(building => building.cells.length));
-  return candidates.filter(building => building.cells.length === minimum);
+  const minimum = Math.min(...candidates.map(building => housingCapacity(building, player.map)));
+  return candidates.filter(building => housingCapacity(building, player.map) === minimum);
 }
 export function releaseHousing(player: ArkPlayer, animal: string, freedId?: string, transfer = false): void {
   for (const building of player.buildings) building.occupancy = buildingUsedSpace(building);

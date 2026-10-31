@@ -24,13 +24,22 @@ try {
   await page.getByRole('button', { name: /方舟动物园/ }).click();
   await page.getByRole('button', { name: '创建方舟对局 · 与 AI 开始', exact: true }).click();
   await page.locator('.ark-choice-options .ark-card').first().waitFor();
+  await page.waitForLoadState('networkidle');
   await page.screenshot({ path: `${directory}/ark-setup.png`, fullPage: true });
   await page.getByLabel('导入对局文件').setInputFiles(`${directory}/ark-midgame.replay.json`);
   await page.getByRole('button', { name: '选择建造行动', exact: true }).waitFor();
+  await page.waitForLoadState('networkidle');
   await page.screenshot({ path: `${directory}/ark-table.png`, fullPage: true });
   await page.screenshot({ path: `${directory}/ark-table-viewport.png` });
   await page.locator('.ark-board-columns').scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${directory}/ark-map-viewport.png` });
+  for (const viewport of [{ width: 1366, height: 768 }, { width: 1440, height: 900 }, { width: 1920, height: 1080 }]) {
+    await page.setViewportSize(viewport);
+    const cards = page.getByTestId('ark-hand').locator('.ark-card');
+    if (await cards.count()) await cards.first().click();
+    else await page.getByTestId('ark-market').locator('.ark-card').first().click();
+    await page.screenshot({ path: `${directory}/ark-inspector-${viewport.width}.png` });
+  }
   await page.goto('http://127.0.0.1:4173/eurogame-card-engine/#/lobby');
   await page.getByRole('button', { name: /方舟动物园/ }).click();
   await page.getByLabel('动物园地图', { exact: true }).selectOption('0');
@@ -42,6 +51,21 @@ try {
   await page.getByTestId('ark-turn-status').filter({ hasText: '轮到你行动' }).waitFor();
   await page.locator('.ark-board-columns').scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${directory}/ark-map0-viewport.png` });
+  for (const map of ['1', '2']) {
+    await page.goto('http://127.0.0.1:4173/eurogame-card-engine/#/lobby');
+    await page.getByRole('button', { name: /方舟动物园/ }).click();
+    await page.getByLabel('动物园地图', { exact: true }).selectOption(map);
+    await page.getByRole('button', { name: '创建方舟对局 · 与 AI 开始', exact: true }).click();
+    await page.locator('.ark-choice-options .ark-card').first().waitFor();
+    for (let index = 0; index < 4; index += 1) await page.locator('.ark-choice-options .ark-card').nth(index).click();
+    await page.getByRole('button', { name: '确认选择', exact: true }).click();
+    await page.getByTestId('ark-turn-status').filter({ hasText: '轮到你行动' }).waitFor();
+    await page.waitForLoadState('networkidle');
+    await page.screenshot({ path: `${directory}/ark-map${map}-viewport.png` });
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await page.screenshot({ path: `${directory}/ark-map${map}-1366.png` });
+    await page.setViewportSize({ width: 1920, height: 1080 });
+  }
   if (errors.length) throw new Error(errors.join('\n'));
-  console.log('已生成地图 A 完整牌桌与地图 0 设置、视口截图。');
+  console.log('已生成地图 A / 0 / 1 / 2 的牌桌截图，以及三个桌面尺寸的操作面板截图。');
 } finally { await browser.close(); }

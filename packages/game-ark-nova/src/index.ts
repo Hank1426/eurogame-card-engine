@@ -20,7 +20,7 @@ export function actionStrength(row: readonly ArkAction[], action: ArkAction): nu
 
 export { arkGame, validateArkCommand, type ArkResult } from './engine.js';
 export { arkActor, arkPlayer, tagsOf, animalCost, handLimit, availableWorkers, reputationRange, donationCost, finalCardPoints, housingError, buildCommands, projectMetric, projectById, projectRequirementError, projectRewardsFor, buildingUsedSpace, specialSpace, freedEnclosures, releaseHousing, PROJECT_REWARDS, PROJECT_REWARD_NAMES, UNIVERSITY_NAMES } from './rules.js';
-export { MAP_A, MAP_0, mapCells, BUILDING_SHAPES, BUILDING_NAMES, buildingCells, placementError, appealIncome, victoryScore, crossingAppeal, type Building, type BuildingKind, type MapId } from './board.js';
+export { MAP_A, MAP_0, MAP_1, MAP_2, MAP_IDS, MAP_INFO, MAPS, nextToLandmark, housingCapacity, mapCells, adjacentTerrain, adjacentTerrainCells, BUILDING_SHAPES, BUILDING_NAMES, buildingCells, placementError, appealIncome, victoryScore, crossingAppeal, type Building, type BuildingKind, type MapId } from './board.js';
 export { ACTION_NAMES, cardActionTable, animalCapacity } from './foundation.js';
 export { ZOO_CARDS, CARD_IDS, zooCard, BASE_PROJECTS, DECK_PROJECTS, projectDescription, FINAL_CARDS, CONTINENTS, TAG_NAMES, ABILITY_LABELS, sponsorDescription, ARK_LIMITATIONS, type ZooCard } from './cards.js';
 export { BONUS_TILES, BONUS_NAMES } from './bonuses.js';

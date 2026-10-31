@@ -1,8 +1,9 @@
 import { hexKey, hexNeighbors, transformHexes, validatePlacement, type Hex } from '@eurogame/mechanisms';
 
-export type MapId = 'A' | '0';
+export const MAP_IDS = ['A', '0', '1', '2'] as const;
+export type MapId = typeof MAP_IDS[number];
 export type BuildingKind = 'enclosure-1' | 'enclosure-2' | 'enclosure-3' | 'enclosure-4' | 'enclosure-5' | 'kiosk' | 'pavilion' | 'petting' | 'reptile-house' | 'aviary';
-export type MapReward = 'money-5' | 'money-10' | 'draw-2' | 'x' | 'reputation-2' | 'worker' | 'snap' | 'upgrade';
+export type MapReward = 'money-5' | 'money-10' | 'draw-2' | 'x' | 'reputation-1' | 'reputation-2' | 'worker' | 'snap' | 'upgrade' | 'partner' | 'paid-sponsor' | 'clever';
 export interface MapCell extends Hex {
   column: number;
   row: number;
@@ -61,16 +62,52 @@ const zeroRocks = new Set(['2:0', '3:1', '6:1', '5:4', '6:4', '6:5', '5:6', '1:6
 const zeroWater = new Set(['0:0', '0:1', '1:0', '3:0', '2:3', '5:2', '1:5', '8:4', '8:5', '7:6']);
 const zeroRewards: Record<string, MapReward> = {
   '1:1': 'snap', '2:2': 'snap', '3:6': 'snap', '3:4': 'x', '4:0': 'x', '4:2': 'money-10',
-  '5:3': 'upgrade', '5:5': 'x', '7:1': 'money-5', '8:3': 'money-5', '7:5': 'reputation-2', '0:4': 'reputation-2'
+  '5:3': 'clever', '5:5': 'x', '7:1': 'money-5', '8:3': 'money-5', '7:5': 'reputation-2', '0:4': 'reputation-2'
 };
 export const MAP_0: MapCell[] = MAP_A.map(cell => {
   const key = `${cell.column}:${cell.row}`;
   return { ...cell, terrain: zeroRocks.has(key) ? 'rock' : zeroWater.has(key) ? 'water' : 'land', upgraded: key === '6:2' || key === '7:2', reward: zeroRewards[key] ?? null };
 });
-export function mapCells(map: MapId = 'A'): MapCell[] { return map === 'A' ? MAP_A : MAP_0; }
+function advancedMap(rocks: string[], water: string[], rewards: Record<string, MapReward>, upgraded: string[]): MapCell[] {
+  return MAP_A.map(cell => {
+    const key = `${cell.column}:${cell.row}`;
+    return { ...cell, terrain: rocks.includes(key) ? 'rock' : water.includes(key) ? 'water' : 'land', reward: rewards[key] ?? null, upgraded: upgraded.includes(key) };
+  });
+}
+export const MAP_1 = advancedMap(
+  ['1:0', '2:0', '3:0', '0:2', '1:3', '0:3', '0:4', '3:5', '3:6'],
+  ['4:2', '5:3', '6:3', '7:3', '8:2', '8:3', '5:6'],
+  { '0:0': 'x', '4:0': 'clever', '7:1': 'snap', '3:3': 'snap', '6:2': 'money-5', '7:4': 'x', '0:5': 'money-5', '4:5': 'reputation-1', '7:6': 'x' },
+  ['3:2', '4:3', '5:4']
+);
+export const MAP_2 = advancedMap(
+  ['0:0', '0:1', '1:2', '4:0', '5:0', '8:2', '0:4', '1:5', '0:5'],
+  ['6:0', '7:0', '3:4', '4:4', '5:4', '5:5', '4:5'],
+  { '1:1': 'partner', '5:1': 'snap', '7:1': 'snap', '0:2': 'reputation-1', '7:3': 'x', '4:3': 'x', '1:6': 'paid-sponsor', '8:5': 'clever' },
+  ['1:0', '2:0', '3:3', '5:3']
+);
+export const MAPS: Record<MapId, MapCell[]> = { A: MAP_A, '0': MAP_0, '1': MAP_1, '2': MAP_2 };
+export const MAP_INFO: Record<MapId, { name: string; description: string; landmark: { cell: Hex; name: string } | null; lastWorkerPoints: number; thirdUniversityPoints: number }> = {
+  A: { name: '教学地图 A', description: '预置贩售亭与 3 格饲养区。', landmark: null, lastWorkerPoints: 0, thirdUniversityPoints: 2 },
+  '0': { name: '基础地图 0', description: '空白起步，首座建筑须覆盖边界。', landmark: null, lastWorkerPoints: 0, thirdUniversityPoints: 2 },
+  '1': { name: '观测塔', description: '与观测塔格共边的标准饲养区每次翻为占用时获得 2 魅力，特殊馆不适用。第三所大学获得 1 保护。', landmark: { cell: { q: 1, r: 2 }, name: '观测塔' }, lastWorkerPoints: 0, thirdUniversityPoints: 1 },
+  '2': { name: '户外营地', description: '与户外营地格共边的标准饲养区容量 +2；特殊馆不适用。第四位事务员解锁时获得 1 保护。', landmark: { cell: { q: 5, r: 1 }, name: '户外营地' }, lastWorkerPoints: 1, thirdUniversityPoints: 2 }
+};
+export function mapCells(map: MapId = 'A'): MapCell[] {
+  const cells = MAPS[map];
+  if (!cells) throw new Error(`不支持地图 ${map}。`);
+  return cells;
+}
+export function nextToLandmark(building: Building, map: MapId): boolean {
+  const landmark = MAP_INFO[map].landmark;
+  return Boolean(landmark && building.cells.some(cell => hexNeighbors(cell).some(neighbor => hexKey(neighbor) === hexKey(landmark.cell))));
+}
+export function housingCapacity(building: Building, map: MapId = 'A'): number {
+  return building.kind.startsWith('enclosure') ? building.cells.length + (map === '2' && nextToLandmark(building, map) ? 2 : 0) : building.kind === 'petting' ? 3 : building.kind === 'aviary' || building.kind === 'reptile-house' ? 5 : 0;
+}
 
 export function startingBuildings(map: MapId = 'A'): Building[] {
-  if (map === '0') return [];
+  if (map !== 'A') return [];
   return [
     { id: 'initial-kiosk', kind: 'kiosk', cells: [{ q: 0, r: 3 }], animals: [] },
     { id: 'initial-enclosure', kind: 'enclosure-3', cells: [{ q: 0, r: 4 }, { q: 0, r: 5 }, { q: 1, r: 4 }], animals: [] }
@@ -102,9 +139,12 @@ export function placementError(buildings: Building[], kind: BuildingKind, cells:
   return null;
 }
 
-export function adjacentTerrain(cells: Hex[], terrain: 'water' | 'rock', mapId: MapId = 'A'): number {
+export function adjacentTerrainCells(cells: Hex[], terrain: 'water' | 'rock', mapId: MapId = 'A'): MapCell[] {
   const adjacent = new Set(cells.flatMap(hexNeighbors).map(hexKey));
-  return mapCells(mapId).filter(cell => cell.terrain === terrain && adjacent.has(hexKey(cell))).length;
+  return mapCells(mapId).filter(cell => cell.terrain === terrain && adjacent.has(hexKey(cell)));
+}
+export function adjacentTerrain(cells: Hex[], terrain: 'water' | 'rock', mapId: MapId = 'A'): number {
+  return adjacentTerrainCells(cells, terrain, mapId).length;
 }
 
 export function kioskIncome(buildings: Building[]): number {

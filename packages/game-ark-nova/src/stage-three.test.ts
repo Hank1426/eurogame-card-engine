@@ -46,14 +46,14 @@ function projectCommand(target: string, reward = 'money-12', releaseAnimal = '',
 }
 
 describe('阶段三一 · 地图 0 与特殊馆', () => {
-  it('地图 0 空白开始，边界首建、独立地形与升级奖励', () => {
+  it('地图 0 空白开始，边界首建、独立地形与机灵奖励', () => {
     const session = fixture('0');
     expect(session.state.players[0]!.buildings).toEqual([]);
     expect(MAP_0).toHaveLength(58);
     expect(mapCells('0')).toBe(MAP_0);
     expect(MAP_0.filter(cell => cell.terrain === 'rock')).toHaveLength(9);
     expect(MAP_0.filter(cell => cell.terrain === 'water')).toHaveLength(10);
-    expect(MAP_0.find(cell => cell.column === 5 && cell.row === 3)?.reward).toBe('upgrade');
+    expect(MAP_0.find(cell => cell.column === 5 && cell.row === 3)?.reward).toBe('clever');
     expect(placementError([], 'enclosure-1', [{ q: 4, r: 1 }], false, '0')).toContain('边界');
     expect(placementError([], 'enclosure-1', [{ q: 0, r: 2 }], false, '0')).toBeNull();
     expect(projectRewardsFor(session.state.players[0]!)).toContain('worker');

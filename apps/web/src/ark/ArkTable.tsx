@@ -2,19 +2,20 @@ import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from
 import { applyCommand, forkSessionAt, visibleEvents } from '@eurogame/engine-core';
 import {
   arkGame, arkActor, chooseArkCommand, ACTION_NAMES, ZOO_CARDS, ARK_LIMITATIONS,
-  zooCard, TAG_NAMES, ABILITY_LABELS, sponsorDescription, BUILDING_NAMES, buildingCells,
-  animalCost, housingError, appealIncome, victoryScore, crossingAppeal, reputationRange, availableWorkers,
-  tagsOf, projectById, projectMetric, PROJECT_REWARD_NAMES, UNIVERSITY_NAMES, FINAL_CARDS, donationCost,
-  DECK_PROJECTS, projectDescription, BONUS_NAMES, buildingUsedSpace, projectRewardsFor,
+  zooCard, ABILITY_LABELS, sponsorDescription, BUILDING_NAMES, buildingCells, animalCost,
+  housingError, availableWorkers, reputationRange, PROJECT_REWARD_NAMES, FINAL_CARDS,
+  donationCost, projectDescription, buildingUsedSpace, projectRewardsFor,
+  housingCapacity,
   type ArkCommand, type ArkSession, type BuildingKind
 } from '@eurogame/game-ark-nova';
-import { SectionHeading } from '@eurogame/ui-kit';
-import { ArkCard, TAG_SYMBOLS } from './ArkCard.js';
+import { ArkCard } from './ArkCard.js';
 import { ArkMap } from './ArkMap.js';
+import { ArkIcon } from './ArkIcon.js';
+import { ArkArtwork } from './ArkArtwork.js';
+import { ArkRequirements } from './ArkRequirements.js';
+import { ArkOverview } from './ArkOverview.js';
+import { ArkAssociation } from './ArkAssociation.js';
 import './ark.css';
-
-const actionSymbols = { animals: '🐾', build: '⬡', cards: '▤', association: '♟', sponsors: '◈' };
-const stageNames = { setup: '起手选牌', turn: '选择行动', action: '行动进行中', break: '休息结算', scoring: '终局计分', finished: '对局结束' };
 
 export function ArkTable({ session, onSessionChange }: { session: ArkSession; onSessionChange: Dispatch<SetStateAction<ArkSession | null>> }) {
   const [assets, setAssets] = useState<Record<string, string>>({});
@@ -26,12 +27,13 @@ export function ArkTable({ session, onSessionChange }: { session: ArkSession; on
   const [flip, setFlip] = useState(false);
   const [spendX, setSpendX] = useState(0);
   const [useDouble, setUseDouble] = useState(false);
-  const [rewardFirst, setRewardFirst] = useState(false);
+  const [doubleCount, setDoubleCount] = useState(1);
   const [choiceSelection, setChoiceSelection] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [aiFailureRevision, setAiFailureRevision] = useState<number | null>(null);
   const [replayRevision, setReplayRevision] = useState<number | null>(null);
   const [coordinates, setCoordinates] = useState(false);
+  const [journal, setJournal] = useState(false);
   const displayed = useMemo(() => replayRevision === null ? session : forkSessionAt(arkGame, session, replayRevision), [session, replayRevision]);
   const view = useMemo(() => arkGame.getPlayerView(displayed.state, 'p1'), [displayed]);
   const player = view.players[0]!;
@@ -48,14 +50,15 @@ export function ArkTable({ session, onSessionChange }: { session: ArkSession; on
   const buildError = draft.length ? arkGame.validateCommand(displayed.state, 'p1', buildCommand)?.message ?? null : null;
   const result = arkGame.getResult(displayed.state);
   const humanOptions = decision?.options ?? [];
-  const associationOptions = humanOptions.filter(option => option.command.type === 'association');
+  const associationOptions = humanOptions.map(option => option.command).filter((command): command is Extract<ArkCommand, { type: 'association' }> => command.type === 'association');
   const animalCommand: ArkCommand | null = selected && selected.source !== 'tableau' && card?.kind === 'animal'
     ? { type: 'animal', card: selected.id, source: selected.source, building: selectedBuilding ?? '' } : null;
   const sponsorCommand: ArkCommand | null = selected && selected.source !== 'tableau' && card?.kind === 'sponsor'
     ? { type: 'sponsor', card: selected.id, source: selected.source } : null;
   const playCommand = animalCommand ?? sponsorCommand;
   const playError = playCommand ? arkGame.validateCommand(displayed.state, 'p1', playCommand)?.message ?? null : null;
-  const log = visibleEvents(displayed.events, 'p1').slice(-35).reverse();
+  const log = visibleEvents(displayed.events, 'p1').slice(-50).reverse();
+  const building = player.buildings.find(building => building.id === selectedBuilding);
 
   useEffect(() => {
     let active = true;
@@ -64,19 +67,7 @@ export function ArkTable({ session, onSessionChange }: { session: ArkSession; on
     }).catch(() => undefined);
     return () => { active = false; };
   }, []);
-
   useEffect(() => { setChoiceSelection([]); }, [view.pending?.id]);
-  useEffect(() => {
-    if (!context || view.activePlayer !== 'p1' || replayRevision !== null || pending) return;
-    const target = context.action === 'cards' ? '.ark-market-section' : context.action === 'association' ? '.ark-association' : '.ark-board-columns';
-    const frame = window.requestAnimationFrame(() => document.querySelector(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-    return () => window.cancelAnimationFrame(frame);
-  }, [context?.action, view.activePlayer, replayRevision]);
-  useEffect(() => {
-    if (!selected || pending) return;
-    const frame = window.requestAnimationFrame(() => document.querySelector('.ark-board-columns')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-    return () => window.cancelAnimationFrame(frame);
-  }, [selected?.id]);
   useEffect(() => {
     if (replayRevision !== null || session.state.phase === 'finished' || arkActor(session.state) === 'p1' || aiFailureRevision === session.state.revision) return;
     const timer = setTimeout(() => {
@@ -102,7 +93,7 @@ export function ArkTable({ session, onSessionChange }: { session: ArkSession; on
       id: `human-${session.branch.id}-${session.state.revision}`, actor: 'p1', revision: session.state.revision, command
     });
     if (!outcome.ok) { setError(outcome.error.message); return; }
-    setError(''); setSpendX(0); setSelected(null);
+    setError(''); setSpendX(0); setUseDouble(false); setDoubleCount(1); setSelected(null);
     onSessionChange(outcome.session);
   }
   function choose(id: string) {
@@ -115,84 +106,110 @@ export function ArkTable({ session, onSessionChange }: { session: ArkSession; on
       if (building) setSelectedBuilding(building.id);
     }
   }
+  const choices = pending && <div className={`ark-choice-options ${pending.kind === 'setup' ? 'starting-hand' : ''}`}>{pending.options.map(option =>
+    option.card && !FINAL_CARDS.some(card => card.id === option.card)
+      ? <div className="ark-choice-card" key={option.id}><ArkCard id={option.card} assets={assets} selected={choiceSelection.includes(option.id)} onClick={() => choose(option.id)} />{option.id.startsWith('dig-') && <small>{option.label}</small>}</div>
+      : <button className={`ark-choice-option ${choiceSelection.includes(option.id) ? 'selected' : ''}`} key={option.id} aria-pressed={choiceSelection.includes(option.id)} onClick={() => choose(option.id)}>
+        {option.card && <span>✦ 终局卡</span>}{option.label}<small>{choiceSelection.includes(option.id) ? '✓ 已选' : '点击选择'}</small>
+      </button>)}</div>;
 
   return <div className="ark-table" data-testid="ark-table">
-    <header className="ark-game-heading"><div><span className="eyebrow">ARK NOVA / TWO-PLAYER TABLE</span><h1>方舟动物园 <span>地图 {player.map} · 你与 AI</span></h1></div><div className="ark-heading-links"><a href="#/ark-rules">游戏规则 ↗</a><button className="text-button" onClick={() => document.querySelector('.ark-board-columns')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>查看地图</button><button className="text-button" onClick={() => document.querySelector('.ark-hand-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>查看手牌</button><details><summary>首版支持范围</summary><p>{ZOO_CARDS.filter(card => card.kind === 'animal').length} 张动物 / {ZOO_CARDS.filter(card => card.kind === 'sponsor').length} 张赞助商 / 20 张牌库项目 / 12 种基础项目 / 11 张终局卡。</p>{ARK_LIMITATIONS.map(limit => <p key={limit}>{limit}</p>)}</details></div></header>
-    <div className="ark-table-status"><span className={`ark-turn-pill ${aiTurn ? 'thinking' : ''}`} data-testid="ark-turn-status">{replayRevision !== null ? `历史回放 · 修订 ${replayRevision}` : result ? '对局结束' : aiTurn ? 'AI 正在思考…' : pending ? pending.prompt : '轮到你行动'}</span><span>{stageNames[view.stage]}</span><span>第 {view.turns + 1} 回合</span><span>已休息 {view.breaks} 次</span><span className="ark-revision">种子 {session.seed} · 修订 <b data-testid="ark-revision">{view.revision}</b></span></div>
-    {error && <div className="error-banner" role="alert"><span>{error}</span>{aiFailureRevision !== null ? <button className="secondary" onClick={() => { setAiFailureRevision(null); setError(''); }}>重试 AI</button> : <button aria-label="关闭错误" onClick={() => setError('')}>×</button>}</div>}
-    {result && <section className="ark-result panel" data-testid="ark-result"><span>✦</span><div><span className="eyebrow">FINAL SCORING</span><h2>{result.winners.length === 2 ? '双方共享胜利' : result.winners.includes('p1') ? '你的动物园获胜' : '林野动物园 AI 获胜'}</h2><p>{result.scores.map(score => `${view.players.find(player => player.id === score.player)!.name}：${score.points} 分（魅力 ${score.appeal} / 保护 ${score.conservation} / 支持项目 ${score.projects}）`).join('；')}</p></div><a className="secondary" href="#/lobby">再来一局</a></section>}
-    <section className="ark-tracks panel" aria-label="公共计分轨道">
-      <div className="ark-track-legend"><strong>魅力与保护 · 两条轨道相遇触发终局</strong><span>♟ 魅力 →</span><span>← ⬟ 保护</span>{view.finalTurns !== null && <b>最后 {view.finalTurns} 个回合</b>}</div>
-      {view.players.map(candidate => <div className={`ark-track-row ${candidate.id}`} key={candidate.id}><span className="ark-track-name">{candidate.id === 'p1' ? '你' : 'AI'} <small>{victoryScore(candidate.appeal, candidate.conservation)} 分</small></span><div className="ark-score-rail">
-        <span className="ark-appeal-fill" style={{ width: `${candidate.appeal / 114 * 100}%` }} /><span className="ark-conservation-fill" style={{ left: `${Math.max(0, crossingAppeal(candidate.conservation)) / 114 * 100}%` }} />
-        <span className="ark-score-token appeal-token" style={{ left: `${Math.min(97, candidate.appeal / 114 * 100)}%` }}>♟{candidate.appeal}</span>
-        <span className="ark-score-token conservation-token" style={{ left: `${Math.min(97, Math.max(0, crossingAppeal(candidate.conservation)) / 114 * 100)}%` }}>⬟{candidate.conservation}</span>
-      </div><span className="ark-track-income">收入 {appealIncome(candidate.appeal)} ◈</span></div>)}
-      <div className="ark-public-bottom"><div className="ark-reputation-track"><span>你的声望 ◆ {player.reputation}</span>{Array.from({ length: 15 }, (_, index) => <i key={index} className={index + 1 <= player.reputation ? 'reached' : ''}>{index + 1}</i>)}</div><div className="ark-break-track"><span>☕ 休息</span>{Array.from({ length: 9 }, (_, index) => <i key={index} className={index < view.breakProgress ? 'reached' : ''} />)}<b data-testid="ark-break">{view.breakProgress}/9</b></div></div>
-      <div className="ark-bonus-tiles" role="region" aria-label="本局随机保护奖励">{view.bonusTiles.map(tile => <span className={tile.claimedBy ? 'claimed' : ''} key={`${tile.point}-${tile.reward}`}><b>⬟ {tile.point}</b>{BONUS_NAMES[tile.reward]}<small>{tile.claimedBy === 'p1' ? '你已领取' : tile.claimedBy ? 'AI 已领取' : '双方竞争 · 仅一次'}</small></span>)}</div>
-    </section>
-    <section className="ark-market-section"><SectionHeading eyebrow="PUBLIC DISPLAY" title="公共展示区" extra={<span className="tiny">牌库 {view.deckCount} · 弃牌 {view.discardCount} · 当前声望可访问 {reputationRange(player.reputation)} 号以内</span>} />
-      <div className="ark-market" data-testid="ark-market">{view.market.map((id, index) => <div className={`ark-display-slot ${index < reputationRange(player.reputation) ? 'in-range' : ''}`} key={index}><div className="ark-slot-label"><span>{index + 1}</span><small>{index < reputationRange(player.reputation) ? '声望范围内' : '精选可获取'}</small></div>
-        {id ? <ArkCard id={id} assets={assets} selected={selected?.id === id} onClick={() => inspect(id, 'market')} compact /> : <div className="ark-card-back">{view.stage === 'setup' ? '设置结束后翻开' : '回合结束后补充'}</div>}
-      </div>)}</div>
-    </section>
-    {pending && <section className="ark-choice-panel panel" aria-label="当前选择"><div className="section-heading"><div><span className="eyebrow">RESOLVE YOUR DECISION</span><h2 data-testid="ark-choice-prompt">{pending.prompt}</h2><p className="tiny">选择 {pending.min === pending.max ? pending.min : `${pending.min}–${pending.max}`} 项 · 已选 {choiceSelection.length} 项</p></div><button className="primary" disabled={readOnly || choiceSelection.length < pending.min || choiceSelection.length > pending.max} onClick={() => send({ type: 'resolve', choiceId: pending.id, options: choiceSelection })}>确认选择</button></div>
-      <div className={`ark-choice-options ${pending.kind === 'setup' ? 'starting-hand' : ''}`}>{pending.options.map(option => option.card && !FINAL_CARDS.some(card => card.id === option.card) ? <ArkCard key={option.id} id={option.card} assets={assets} selected={choiceSelection.includes(option.id)} onClick={() => choose(option.id)} /> :
-        <button className={`ark-choice-option ${choiceSelection.includes(option.id) ? 'selected' : ''}`} key={option.id} aria-pressed={choiceSelection.includes(option.id)} onClick={() => choose(option.id)}>{option.card && FINAL_CARDS.some(card => card.id === option.card) && <span>✦ 终局卡</span>}{option.label}<small>{choiceSelection.includes(option.id) ? '✓ 已选' : '点击选择'}</small></button>)}</div>
-    </section>}
-    <div className="ark-board-columns"><div className="ark-zoo-column">
-      <section className="ark-resource-bar panel" aria-label="你的动物园资源"><div><strong>你的动物园</strong><span>地图 {player.map}</span></div><div><span>资金</span><b data-testid="ark-money">{player.money} ◈</b></div><div><span>魅力</span><b>{player.appeal} ♟</b></div><div><span>保护</span><b>{player.conservation} ⬟</b></div><div><span>X 标记</span><b>{player.x} ✳</b></div><div><span>事务员</span><b>{availableWorkers(player)}/{player.workers} ♟</b></div></section>
-      <div className="ark-map-with-rewards"><div className="ark-edge-rewards"><span>保护项目<br />边缘奖励</span>{projectRewardsFor(player).map(reward => <div className={player.projectRewards.includes(reward) ? 'activated' : ''} title={PROJECT_REWARD_NAMES[reward]} key={reward}>{player.projectRewards.includes(reward) ? '✓' : '●'}<small>{reward === 'free-2' ? '免费 2 格' : reward === 'income-cp' ? '⬟ 1 收入' : reward === 'income-5' ? '◈ 5 收入' : reward === 'worker' ? '♟ 事务员' : reward === 'money-12' ? '◈ 12' : reward === 'x-3' ? 'X 3' : reward === 'draw-2' ? '抓 2 张' : '拿牌收入'}</small></div>)}</div><ArkMap player={player} draft={draft} valid={!buildError} onCell={(q, r) => setAnchor({ q, r })} selectedBuilding={selectedBuilding} onBuilding={setSelectedBuilding} showCoordinates={coordinates} /></div>
-      <div className="ark-player-partners"><span>合作动物园：</span>{player.partners.length ? player.partners.map(tag => <b key={tag}>{TAG_SYMBOLS[tag]} {TAG_NAMES[tag]}</b>) : <small>尚无</small>}<span>大学：</span>{player.universities.map(university => <b title={UNIVERSITY_NAMES[university]} key={university}>{university === 'science' ? '⚗×2' : university === 'hand' ? '▤5 ◆1' : '⚗ ◆2'}</b>)}</div>
-      <section className="ark-tableau panel"><SectionHeading eyebrow="YOUR ZOO" title="已安置动物与赞助商" extra={<span className="tiny">动物 {player.animals.length} · 赞助商 {player.sponsors.length}</span>} /><div className="ark-tableau-cards">{[...player.animals, ...player.sponsors].length ? [...player.animals, ...player.sponsors].map(id => <button key={id} onClick={() => inspect(id, 'tableau')}><span>{zooCard(id).kind === 'animal' ? '🐾' : '◈'}</span>{zooCard(id).name}</button>) : <p className="muted">先规划饲养区，再安置动物；赞助商会逐步建立你的经营引擎。</p>}</div><div className="ark-tag-summary">{Object.entries(tagsOf(player)).filter(([, count]) => count > 0).map(([tag, count]) => <span key={tag}>{TAG_NAMES[tag]} {count}</span>)}</div></section>
-    </div><aside className="ark-side-column">
-      <section className="ark-association panel"><SectionHeading eyebrow="ASSOCIATION BOARD" title="动物园协会" extra={<span className="tiny">可用工人 {availableWorkers(player)}</span>} /><div className="ark-association-tasks"><div><b>2</b><span>声望 +2</span></div><div><b>3</b><span>合作动物园</span></div><div><b>4</b><span>合作大学</span></div><div><b>{player.sponsors.includes('203') ? 4 : 5}</b><span>保护项目</span></div></div><div className="ark-supply"><span>合作动物园供应</span><div>{view.partnerSupply.map(tag => <i key={tag}>{TAG_SYMBOLS[tag]}</i>)}</div></div><div className="ark-supply"><span>大学供应</span><div>{view.universitySupply.map(id => <i title={UNIVERSITY_NAMES[id]} key={id}>{id === 'science' ? '⚗⚗' : id === 'hand' ? '▤5' : '⚗◆'}</i>)}</div></div><div className="ark-donation-label">升级协会后可捐赠 · 下一格 {donationCost(view.donations)} 资金</div>
+    <header className="ark-game-heading"><div><span className="ark-title-mark">A</span><h1>方舟动物园 <small>地图 {player.map} · 双人实验版</small></h1></div>
+      <div className="ark-heading-links"><a href="#/ark-rules">游戏规则 ↗</a><button className="text-button" aria-expanded={journal} onClick={() => setJournal(value => !value)}>日志与回放</button><details><summary>支持范围</summary><div><p>{ZOO_CARDS.filter(card => card.kind === 'animal').length} 动物 / {ZOO_CARDS.filter(card => card.kind === 'sponsor').length} 赞助商 / 32 保护项目 / 11 终局卡</p>{ARK_LIMITATIONS.map(limit => <p key={limit}>{limit}</p>)}<p>规则 {arkGame.manifest.rulesVersion}</p><p>{assets.tiles ? '本地参考素材 · 不进入公开构建' : '独立示意图 · 未加载本地参考素材'}</p></div></details></div>
+    </header>
+    <div className="ark-table-status">
+      <span className={`ark-turn-pill ${aiTurn ? 'thinking' : ''}`} data-testid="ark-turn-status">{replayRevision !== null ? `历史回放 · 修订 ${replayRevision}` : result ? '对局结束' : aiTurn ? 'AI 正在思考…' : pending ? pending.prompt : '轮到你行动'}</span>
+      <span>第 {view.turns + 1} 回合</span><span className="ark-ai-score">AI <ArkIcon name="appeal" assets={assets} />{other.appeal} <ArkIcon name="conservation" />{other.conservation}</span>
+      <span className="ark-break-track" title={`已休息 ${view.breaks} 次`}>☕ 休息 <progress value={view.breakProgress} max={9} /><b data-testid="ark-break">{view.breakProgress}/9</b></span>
+      <span className="ark-revision">种子 {session.seed} · 修订 <b data-testid="ark-revision">{view.revision}</b></span>
+    </div>
+    {error && <div className="error-banner ark-floating-error" role="alert"><span>{error}</span>{aiFailureRevision !== null ? <button className="secondary" onClick={() => { setAiFailureRevision(null); setError(''); }}>重试 AI</button> : <button aria-label="关闭错误" onClick={() => setError('')}>×</button>}</div>}
+    <div className="ark-play-layout">
+      <section className="ark-market-section" aria-label="公共展示区"><div className="ark-strip-heading"><strong>公共展示区</strong><small>牌库 {view.deckCount} · 弃牌 {view.discardCount} · 声望可达 {reputationRange(player.reputation)}</small></div>
+        <div className="ark-market" data-testid="ark-market">{view.market.map((id, index) => <div className={`ark-display-slot ${index < reputationRange(player.reputation) ? 'in-range' : ''}`} key={index}>
+          <span className="ark-slot-label" title={index < reputationRange(player.reputation) ? '声望范围内' : '需要精选或更高声望'}>{index + 1}</span>
+          {id ? <ArkCard id={id} assets={assets} selected={selected?.id === id} onClick={() => inspect(id, 'market')} compact /> : <div className="ark-card-back">{view.stage === 'setup' ? '选牌后翻开' : '回合结束补牌'}</div>}
+        </div>)}</div>
       </section>
-      <section className="ark-detail panel">
-        {context?.action === 'build' && !pending ? <><span className="eyebrow">BUILD PREVIEW</span><h2>规划建筑</h2><label htmlFor="ark-building-kind">建筑类型</label><select id="ark-building-kind" value={buildingKind} onChange={event => setBuildingKind(event.target.value as BuildingKind)}>{Object.entries(BUILDING_NAMES).map(([kind, label]) => <option key={kind} value={kind}>{label}</option>)}</select><div className="button-row"><button className="secondary" onClick={() => setRotation(value => (value + 1) % 6)}>↻ 旋转</button><button className="secondary" onClick={() => setFlip(value => !value)}>⇆ 镜像{flip ? ' ✓' : ''}</button></div><p className="muted">点击地图空地选择位置，绿色表示可以确认。</p><dl className="facts"><div><dt>剩余强度</dt><dd>{context.remaining}</dd></div><div><dt>面积 / 费用</dt><dd>{draft.length} 格 / {draft.length * 2} 资金</dd></div><div><dt>建造后资金</dt><dd>{player.money - draft.length * 2}</dd></div><div><dt>锚点</dt><dd>{anchor.q}, {anchor.r}</dd></div></dl><div className={`validation ${buildError ? 'bad' : 'good'}`} role="status">{buildError ?? '✓ 位置合法，可以建造。'}</div><button className="primary full" disabled={readOnly || Boolean(buildError)} onClick={() => send(buildCommand)}>确认建造</button></> :
-          card && selected ? <><span className="eyebrow">{card.kind === 'animal' ? 'ANIMAL DETAILS' : card.kind === 'project' ? 'CONSERVATION PROJECT' : 'SPONSOR DETAILS'}</span><h2>{card.name}</h2><div className="ark-detail-art">{assets[card.id] ? <img src={assets[card.id]} alt="" /> : <span>{TAG_SYMBOLS[card.tags[0] ?? 'science'] ?? '⌁'}</span>}</div><p>{card.kind === 'animal' ? card.abilities.map(ability => `${ABILITY_LABELS[ability.key]}${ability.value !== 1 ? ` ${ability.value}` : ''}`).join('；') || '没有额外能力，安置后获得卡面收益。' : card.kind === 'project' ? projectDescription(card.id) : sponsorDescription(card.id)}</p><div className="ark-requirements"><strong>打出条件</strong><span>{card.kind === 'project' ? '使用协会行动打出并立即支持；不能单独打入场。' : card.requirements.map(requirement => requirement === 'Partner Zoo' ? '对应大洲合作动物园' : requirement === 'animalsII' ? '动物 II' : TAG_NAMES[requirement] ?? requirement).join('、') || '无额外图标条件'}</span></div>
-            {card.kind === 'animal' && <><dl className="facts"><div><dt>最低饲养区</dt><dd>{card.tags.includes('pet') ? '萌宠园' : `${card.size} 格`}</dd></div>{card.specialHousing && <div><dt>特殊安置</dt><dd>{BUILDING_NAMES[card.specialHousing.kind]} · 占用 {card.specialHousing.space} 格</dd></div>}<div><dt>地形要求</dt><dd>水域 {card.water} / 岩石 {card.rock}</dd></div><div><dt>当前费用</dt><dd>{selected.source === 'tableau' ? '已支付' : animalCost(displayed.state, player, card.id, selected.source)} 资金</dd></div><div><dt>安置收益</dt><dd>♟ {card.appeal} / ⬟ {card.conservation} / ◆ {card.reputation}</dd></div></dl><label htmlFor="ark-housing">选择饲养区（也可点击地图建筑）</label><select id="ark-housing" value={selectedBuilding ?? ''} onChange={event => setSelectedBuilding(event.target.value)}><option value="">请选择</option>{player.buildings.filter(building => building.kind !== 'kiosk' && building.kind !== 'pavilion').map(building => <option value={building.id} key={building.id}>{BUILDING_NAMES[building.kind]} · 占用 {buildingUsedSpace(building)}/{building.kind.startsWith('enclosure') ? 1 : building.kind === 'petting' ? 3 : 5} · {building.id}</option>)}</select></>}
-            {selected.source !== 'tableau' && <>{card.kind !== 'project' && <><div className={`validation ${playError ? 'bad' : 'good'}`}>{playError ?? '✓ 满足条件，可以打出。'}</div><button className="primary full" disabled={readOnly || Boolean(playError) || !playCommand} onClick={() => { if (playCommand) send(playCommand); }}>{card.kind === 'animal' ? '确认安置动物' : '确认打出赞助商'}</button></>}
-              {card.kind === 'project' && <p className="muted">选择协会行动后，在下方“项目支持”按钮中选择等级、放归动物与边缘奖励。</p>}
-              {selected.source === 'market' && context?.action === 'cards' && <div className="ark-card-acquire">{humanOptions.filter(option => (option.command.type === 'draw' || option.command.type === 'snap') && option.command.card === selected.id).map(option => <button className="secondary full" key={option.id} disabled={readOnly} onClick={() => send(option.command)}>{option.command.type === 'snap' ? '精选此展示牌' : '抓取此展示牌'}</button>)}</div>}</>}
-            <button className="text-button" onClick={() => setSelected(null)}>取消查看</button>
-          </> : <><span className="eyebrow">YOUR NEXT MOVE</span><h2>{context ? `执行${ACTION_NAMES[context.action]}` : '一张行动，一次抉择。'}</h2><p className="muted">五张行动卡所在位置决定强度。选择右侧更强的行动，完成后它会回到槽位 1。</p><p className="muted">点击手牌或展示牌查看条件与费用；建造时在地图上预览旋转与镜像。</p>
-            {(context?.action === 'animals' || context?.action === 'sponsors') && <div className="ark-quick-hand"><strong>从手牌选择{context.action === 'animals' ? '动物' : '赞助商'}</strong>{player.hand.filter(id => zooCard(id).kind === (context.action === 'animals' ? 'animal' : 'sponsor')).map(id => <button className="secondary full" key={id} onClick={() => inspect(id, 'hand')}>{zooCard(id).name}<small>{zooCard(id).kind === 'animal' ? `${zooCard(id).price} 资金 · ${zooCard(id).size} 格` : `等级 ${zooCard(id).strength}`}</small></button>)}</div>}
-            <a className="text-button" href="#/ark-rules">查看五行动与获胜规则 ↗</a></>}
+      <div className={`ark-board-columns ${pending?.kind === 'setup' ? 'has-setup' : ''}`}>
+        <div className="ark-map-with-rewards">
+          <div className="ark-edge-rewards" aria-label="保护项目边缘奖励">{projectRewardsFor(player).map(reward => <div className={player.projectRewards.includes(reward) ? 'activated' : ''} title={PROJECT_REWARD_NAMES[reward]} key={reward}><b>{player.projectRewards.includes(reward) ? '✓' : reward === 'free-2' ? '⬡2' : reward === 'income-cp' ? '⬟1' : reward === 'income-5' ? '◈5' : reward === 'worker' ? '♟+' : reward === 'money-12' ? '◈12' : reward === 'x-3' ? 'X3' : reward === 'income-sponsor' ? '◈◇' : reward === 'draw-2' ? '▤2' : '▤↗'}</b></div>)}</div>
+          <ArkMap player={player} draft={draft} valid={!buildError} onCell={(q, r) => setAnchor({ q, r })} selectedBuilding={selectedBuilding} onBuilding={setSelectedBuilding} showCoordinates={coordinates} assets={assets} {...(card?.kind === 'animal' && selected?.source !== 'tableau' ? { animal: card.id } : {})} />
+        </div>
+        {pending?.kind === 'setup' ? <section className="ark-setup-surface panel" aria-label="起手选牌"><div className="ark-mini-heading"><strong>规划你的第一座动物园</strong><small>点选 4 张保留，在右侧确认</small></div>{choices}</section>
+          : <ArkOverview view={view} assets={assets} inspect={inspect} />}
+      </div>
+      <section className="ark-hand-section"><div className="ark-strip-heading"><strong>你的手牌 <small>{player.handCount}</small></strong><small>点击查看 · 右侧确认 · 休息上限 {player.universities.includes('hand') ? 5 : 3}</small></div>
+        <div className="ark-hand" data-testid="ark-hand">{player.hand.map(id => <ArkCard key={id} id={id} assets={assets} selected={selected?.id === id} onClick={() => inspect(id, 'hand')} />)}{!player.hand.length && <p className="muted">暂无手牌。执行卡牌行动，或升级行动后使用展示区。</p>}</div>
       </section>
-      <section className="ark-opponent panel"><div><span className="avatar small p2">AI</span><strong>{other.name}</strong></div><p>◈ {other.money} · ♟ {other.appeal} · ⬟ {other.conservation} · ◆ {other.reputation}</p><p>手牌 {other.handCount} · 动物 {other.animals.length} · 事务员 {availableWorkers(other)}/{other.workers}</p><div className="ark-opponent-row">{other.row.map(action => <span key={action} title={ACTION_NAMES[action]}>{actionSymbols[action]}{other.upgrades.includes(action) ? 'II' : 'I'}</span>)}</div></section>
-    </aside></div>
-    <section className="ark-projects"><SectionHeading eyebrow="BASE CONSERVATION PROJECTS" title="基础保护项目" extra={<span className="tiny">双人局每张封锁一个等级 · 每人每项目仅支持一次</span>} /><div className="ark-project-grid">{view.projects.map(current => {
-      const project = projectById(current.id);
-      return <article className="ark-project-card panel" key={current.id}><header><span>⬟</span><h3>{project.name}</h3><small>你已有 {projectMetric(player, project.tag)} 图标</small></header><div className="ark-project-tiers">{project.thresholds.map((threshold, tier) => <div className={current.blocked === tier ? 'blocked' : current.claimed[tier] ? `claimed ${current.claimed[tier]}` : ''} key={tier}><strong>{threshold} {TAG_NAMES[project.tag]}</strong><span>⬟ {project.points[tier]}</span><small>{current.blocked === tier ? '双人封锁' : current.claimed[tier] === 'p1' ? '你已支持' : current.claimed[tier] ? 'AI 已支持' : '可竞争'}</small></div>)}</div></article>;
-    })}</div></section>
-    <section className="ark-projects"><SectionHeading eyebrow="ACTIVE CONSERVATION PROJECTS" title="牌库保护项目" extra={<span className="tiny">双人最多两张 · 新项目从左侧入场，超出时最右侧移入弃牌堆</span>} /><div className="ark-project-grid" data-testid="ark-active-projects">
-      {view.activeProjects.length ? view.activeProjects.map(current => {
-        const spec = DECK_PROJECTS.find(project => project.id === current.id)!;
-        return <article className="ark-project-card panel" key={current.id}><header><span>⬟</span><h3>{spec.name}</h3><small>{spec.mode === 'release' ? '放归野外' : spec.mode === 'breed' ? '繁育计划' : '收集图标'}</small></header><p className="muted">{projectDescription(spec.id)}</p><div className="ark-project-tiers">{spec.thresholds.map((need, tier) => <div className={current.claimed[tier] ? `claimed ${current.claimed[tier]}` : ''} key={tier}><strong>{spec.mode === 'release' ? tier === 0 ? '大型 4–5 格' : tier === 1 ? '标准 3 格' : '小型 1–2 格' : spec.mode === 'breed' ? '动物 + 合作大洲' : `${need} ${TAG_NAMES[spec.tag]}`}</strong><span>⬟ {spec.points[tier]}{spec.reputation[tier] ? ` ◆${spec.reputation[tier]}` : ''}</span><small>{current.claimed[tier] === 'p1' ? '你已支持' : current.claimed[tier] ? 'AI 已支持' : '可竞争'}</small></div>)}</div></article>;
-      }) : <p className="muted">尚未打出牌库项目。通过协会行动从手牌（或协会 II 的展示区）打出项目并立即支持。</p>}
-    </div></section>
-    <section className="ark-hand-section"><SectionHeading eyebrow="YOUR HAND" title={view.stage === 'setup' ? '起手卡牌 · 上方选择保留 4 张' : '你的手牌'} extra={<span className="tiny">当前 {player.handCount} 张 · 休息时上限 {player.universities.includes('hand') ? 5 : 3} 张</span>} /><div className="ark-hand" data-testid="ark-hand">{player.hand.map(id => <ArkCard key={id} id={id} assets={assets} selected={selected?.id === id} onClick={() => inspect(id, 'hand')} />)}{!player.hand.length && <p className="muted">暂无手牌，可执行卡牌行动，或使用升级行动直接从展示区打出。</p>}</div></section>
-    <section className="ark-final-cards panel"><span>✦ 你的秘密终局目标</span>{player.finals.map(id => { const final = FINAL_CARDS.find(card => card.id === id)!; return <div key={id}><strong>{final.name}</strong><small>{final.thresholds.length ? `达成 ${final.thresholds.join(' / ')}，获得 1 / 2 / 3 / 4 保护点` : final.metric === 'architecture' ? '连接全部水域 / 全部岩石 / 覆盖边界 / 覆盖地图，各 1 点' : '每一种动物图标多于对手，获得 1 点，最多 4 点'}</small></div>; })}</section>
-    <section className="ark-action-dock" aria-label="方舟五行动"><div className="ark-action-instructions"><div><span className="eyebrow">{aiTurn ? 'AI IS PLAYING' : pending ? 'CHOICE REQUIRED' : context ? 'ACTION IN PROGRESS' : 'SELECT YOUR ACTION'}</span><strong>{aiTurn ? 'AI 正在自动完成行动与选择' : pending ? pending.prompt : context ? `${ACTION_NAMES[context.action]} ${context.upgraded ? 'II' : 'I'} · 剩余额度 ${context.remaining}` : '选择五行动之一，或移动任意行动卡获得 1 枚 X'}</strong></div><div className="ark-action-controls">
-      {!context && !pending && <><label>增强强度 · 使用 X<input aria-label="使用 X 标记" type="number" min={0} max={player.x} value={spendX} disabled={readOnly} onChange={event => setSpendX(Math.max(0, Math.min(player.x, Number(event.target.value))))} /></label>{player.doubleTokens.length > 0 && <label><input type="checkbox" checked={useDouble} onChange={event => setUseDouble(event.target.checked)} />使用对应行动上的双重标记</label>}</>}
-      {context?.action === 'cards' && !pending && <button className="primary" disabled={readOnly || Boolean(arkGame.validateCommand(displayed.state, 'p1', { type: 'draw', source: 'deck', card: '' }))} onClick={() => send({ type: 'draw', source: 'deck', card: '' })}>从牌库抓 1 张</button>}
-      {context?.action === 'sponsors' && !pending && <button className="primary" disabled={readOnly || Boolean(arkGame.validateCommand(displayed.state, 'p1', { type: 'income' }))} onClick={() => send({ type: 'income' })}>休息 +{context.strength} · 领取 {context.strength * (context.upgraded ? 2 : 1)} 资金</button>}
-      {context?.action === 'association' && !pending && <button className="secondary" disabled={readOnly || Boolean(arkGame.validateCommand(displayed.state, 'p1', { type: 'donate' }))} onClick={() => send({ type: 'donate' })}>捐赠 {donationCost(view.donations)} 资金</button>}
-      {context && !pending && <button className="secondary" disabled={readOnly || Boolean(arkGame.validateCommand(displayed.state, 'p1', { type: 'finish' }))} onClick={() => send({ type: 'finish' })}>结束本次行动</button>}
-    </div></div>
-      {context?.action === 'association' && !pending && <><label className="ark-reward-order"><input type="checkbox" checked={rewardFirst} onChange={event => setRewardFirst(event.target.checked)} />支持项目时先领取边缘奖励，再获得保护点</label><div className="ark-association-options">{associationOptions.map(option => {
-        const command = option.command;
-        if (command.type !== 'association') return null;
-        const label = command.task === 'reputation' ? '声望 +2' : command.task === 'partner' ? `${TAG_NAMES[command.target]}合作动物园` : command.task === 'university' ? UNIVERSITY_NAMES[command.target] : `${command.source === 'hand' ? '从手牌打出' : command.source === 'market' ? '从展示区打出' : '支持'}${projectById(command.target).name} · ⬟${projectById(command.target).points[command.tier]}${command.releaseAnimal ? ` · 放归${zooCard(command.releaseAnimal).name}` : ''} · ${PROJECT_REWARD_NAMES[command.reward]}`;
-        return <button className="secondary" key={option.id} disabled={readOnly} onClick={() => send({ ...command, rewardFirst })}>{label}</button>;
-      })}</div></>}
-      <div className="ark-five-actions" data-testid="ark-actions">{player.row.map((action, index) => {
-        const begin: ArkCommand = { type: 'begin', action, spendX, useDouble: useDouble && player.doubleTokens.includes(action) };
+      <section className="ark-action-dock" aria-label="方舟五行动"><div className="ark-five-actions" data-testid="ark-actions">{player.row.map((action, index) => {
+        const doubles = useDouble ? Math.min(doubleCount, player.doubleTokens.filter(token => token === action).length) : 0;
+        const begin: ArkCommand = { type: 'begin', action, spendX, useDouble: doubles > 0, ...(doubles ? { doubleCount: doubles } : {}) };
         const reason = arkGame.validateCommand(displayed.state, 'p1', begin)?.message;
-        return <article className={`ark-action-card ${action} ${context?.action === action ? 'current' : ''}`} key={action}><span className="ark-action-strength">{index + 1}{spendX ? <small>+{spendX}</small> : null}</span><button className="ark-action-main" aria-label={`选择${ACTION_NAMES[action]}行动`} title={reason ?? `${ACTION_NAMES[action]}，强度 ${index + 1 + spendX}`} disabled={readOnly || Boolean(reason)} onClick={() => send(begin)}><span>{actionSymbols[action]}</span><strong>{ACTION_NAMES[action]}{player.doubleTokens.includes(action) ? ' ×2' : ''}</strong><small>{player.upgrades.includes(action) ? '等级 II' : '等级 I'}</small></button><button className="ark-take-x" disabled={readOnly || Boolean(context) || Boolean(pending) || player.x >= 5} onClick={() => send({ type: 'take-x', action, useDouble: useDouble && player.doubleTokens.includes(action) })}>{useDouble && player.doubleTokens.includes(action) ? '消耗双重 · 获得 2 X' : '改为获得 X'}</button></article>;
-      })}</div>
-    </section>
-    <details className="ark-log panel"><summary>对局日志与回放 · {displayed.commands.length} 步</summary><div className="replay-tools"><label htmlFor="ark-replay">回放修订</label><input id="ark-replay" type="range" min={0} max={session.state.revision} value={replayRevision ?? session.state.revision} onChange={event => setReplayRevision(Number(event.target.value))} /><span>{replayRevision ?? session.state.revision}/{session.state.revision}</span><button className="text-button" disabled={replayRevision === null} onClick={() => setReplayRevision(null)}>返回当前对局</button></div><label className="ark-coordinate-toggle"><input type="checkbox" checked={coordinates} onChange={event => setCoordinates(event.target.checked)} /> 显示地图坐标</label><div className="ark-log-entries">{log.map((entry, index) => <button key={`${entry.revision}-${index}`} onClick={() => setReplayRevision(entry.revision)}><span>#{entry.revision}</span>{entry.message}</button>)}</div></details>
+        return <article className={`ark-action-card ${action} ${context?.action === action ? 'current' : ''}`} key={action}>
+          <span className="ark-action-strength">{index + 1}{spendX > 0 && <small>+{spendX}</small>}</span>
+          <button className="ark-action-main" aria-label={`选择${ACTION_NAMES[action]}行动`} title={reason ?? `${ACTION_NAMES[action]}，强度 ${index + 1 + spendX}`} disabled={readOnly || Boolean(reason)} onClick={() => send(begin)}><ArkIcon name={action} assets={assets} /><strong>{ACTION_NAMES[action]}{player.doubleTokens.includes(action) ? ' ×2' : ''}</strong><small>{player.upgrades.includes(action) ? 'II' : 'I'}</small></button>
+          <button className="ark-take-x" disabled={readOnly || Boolean(context) || Boolean(pending) || player.x >= 5} onClick={() => send({ type: 'take-x', action, useDouble: doubles > 0, ...(doubles ? { doubleCount: doubles } : {}) })}>{doubles ? `消耗 ${doubles} 双重 · +${doubles + 1} X` : '改为获得 X'}</button>
+        </article>;
+      })}</div></section>
+      <aside className="ark-control-column" aria-label="固定操作区">
+        <section className="ark-resource-bar" aria-label="你的动物园资源">
+          {([['money', player.money], ['appeal', player.appeal], ['conservation', player.conservation], ['reputation', player.reputation], ['x', player.x], ['worker', `${availableWorkers(player)}/${player.workers}`]] as const).map(([name, value]) =>
+            <div key={name} title={name === 'worker' ? '可用 / 全部事务员' : undefined}><ArkIcon name={name} assets={assets} /><b {...(name === 'money' ? { 'data-testid': 'ark-money' } : {})}>{value}{name === 'money' ? ' ◈' : ''}</b></div>)}
+        </section>
+        <div className="ark-control-state"><span className="eyebrow">{aiTurn ? 'AI TURN' : pending ? 'DECISION' : context ? 'ACTION' : 'YOUR TURN'}</span><strong>{aiTurn ? 'AI 正在行动' : pending ? '完成当前选择' : context ? `${ACTION_NAMES[context.action]} ${context.upgraded ? 'II' : 'I'} · 剩余 ${context.remaining}` : '选择底部行动卡'}</strong></div>
+        <div className="ark-control-scroll">
+          {pending ? <section className="ark-choice-panel"><h2 data-testid="ark-choice-prompt">{pending.prompt}</h2><p className="muted">选择 {pending.min === pending.max ? pending.min : `${pending.min}–${pending.max}`} 项 · 已选 {choiceSelection.length} 项</p>
+            {pending.kind === 'setup' ? <><p className="muted">起始资金 25。建议保留可尽快安置的动物，再规划对应饲养区。</p><p className="ark-choice-tip">选中的卡牌带有绿色边框。选牌进度在确认后提交。</p></> : choices}
+          </section> : context?.action === 'build' ? <section className="ark-detail">
+            <h2>规划建筑</h2><label htmlFor="ark-building-kind">建筑类型</label><select id="ark-building-kind" value={buildingKind} onChange={event => setBuildingKind(event.target.value as BuildingKind)}>{Object.entries(BUILDING_NAMES).map(([kind, label]) => <option key={kind} value={kind}>{label}</option>)}</select>
+            <div className="button-row ark-build-tools"><button className="secondary" onClick={() => setRotation(value => (value + 1) % 6)}>↻ 旋转</button><button className="secondary" onClick={() => setFlip(value => !value)}>⇆ 镜像{flip ? ' ✓' : ''}</button></div>
+            <p className="muted">点击地图空地定位。绿色预览表示可以建造。</p>
+            <div className="ark-build-cost"><span><ArkIcon name="enclosure" />{draft.length} 格</span><span><ArkIcon name="money" />{draft.length * 2}</span><span>余额 {player.money - draft.length * 2}</span></div>
+            <p className="ark-map-hint">贩售亭是店铺图案；紫灰色立体石堆是岩石。只有共边的地形计入动物条件。</p>
+          </section> : card && selected ? <section className="ark-detail">
+            <div className="ark-detail-title"><span className={`ark-kind-label ${card.kind}`}>{card.kind === 'animal' ? '动物' : card.kind === 'project' ? '保护项目' : '赞助商'} / {card.id}</span><button className="text-button" aria-label="取消查看" onClick={() => setSelected(null)}>×</button></div>
+            <h2>{card.name}</h2><div className="ark-detail-art"><ArkArtwork id={card.id} assets={assets} /></div>
+            <div className="ark-detail-tags">{card.tags.map((tag, index) => <ArkIcon name={tag} assets={assets} key={`${tag}-${index}`} />)}{card.appeal > 0 && <span><ArkIcon name="appeal" assets={assets} />{card.appeal}</span>}{card.conservation > 0 && <span><ArkIcon name="conservation" />{card.conservation}</span>}{card.reputation > 0 && <span><ArkIcon name="reputation" assets={assets} />{card.reputation}</span>}</div>
+            <p className="ark-card-effect">{card.kind === 'animal' ? card.abilities.map(ability => `${ABILITY_LABELS[ability.key]}${ability.value !== 1 ? ` ${ability.value}` : ''}`).join('；') || '安置后获得卡面收益。' : card.kind === 'project' ? projectDescription(card.id) : sponsorDescription(card.id)}</p>
+            {selected.source !== 'tableau' && <><span className="ark-field-label">打出条件 <small>✓ 满足 / × 未满足 · 悬停查看</small></span><ArkRequirements card={card} player={player} state={displayed.state} source={selected.source} assets={assets} {...(building ? { building } : {})} /></>}
+            {card.kind === 'animal' && selected.source !== 'tableau' && <>
+              <label htmlFor="ark-housing">饲养区 · 可直接点地图选择</label><select id="ark-housing" value={selectedBuilding ?? ''} onChange={event => setSelectedBuilding(event.target.value)}><option value="">请选择</option>{player.buildings.filter(building => building.kind !== 'kiosk' && building.kind !== 'pavilion').map(building => <option value={building.id} key={building.id}>{BUILDING_NAMES[building.kind]}{housingCapacity(building, player.map) > building.cells.length ? `（容量 ${housingCapacity(building, player.map)}）` : ''} · {buildingUsedSpace(building) > 0 ? '占用' : '闲置'}{housingError(building, card.id, player.map) ? ' · 条件未满足' : ' · ✓ 可安置'} · {building.id}</option>)}</select>
+              <p className="ark-map-hint">相邻水域与岩石已在地图圈出；贩售亭不计作岩石。</p>
+              <div className="ark-price-line"><ArkIcon name="money" />{animalCost(displayed.state, player, card.id, selected.source)}<small>支付后 {player.money - animalCost(displayed.state, player, card.id, selected.source)}</small></div>
+            </>}
+            {card.kind === 'project' && <p className="muted">通过协会行动选择此项目，再选择等级与奖励。</p>}
+          </section> : context?.action === 'association' ? <section className="ark-detail"><h2>选择协会任务</h2><ArkAssociation options={associationOptions} disabled={readOnly} send={send} /></section>
+            : <section className="ark-detail ark-next-move"><h2>{context ? `执行${ACTION_NAMES[context.action]}` : '让动物园生长。'}</h2>
+              <p className="muted">{context?.action === 'animals' ? '点击底部动物手牌，条件和费用将显示在这里。' : context?.action === 'cards' ? '点击展示牌后拿取，或从牌库抓牌。' : context?.action === 'sponsors' ? '点击赞助商手牌打出，或推动休息获得资金。' : '五行动所在槽位决定强度。选中卡牌、预览条件，再在这里确认。'}</p>
+              <div className="ark-howto"><span>1</span>底部选择行动<span>2</span>地图或手牌选目标<span>3</span>右侧确认并结算</div>
+              <div className="ark-legend-guide"><ArkIcon name="kiosk" /><span>店铺是贩售亭<br /><small>不满足岩石条件</small></span><ArkIcon name="rock" /><span>石堆是岩石<br /><small>需与饲养区共边</small></span></div>
+              <a href="#/ark-rules" className="text-button">五行动与获胜规则 ↗</a>
+            </section>}
+          {context?.action === 'association' && selected && !pending && <ArkAssociation options={associationOptions} disabled={readOnly} send={send} />}
+        </div>
+        <div className="ark-confirm-area" data-testid="ark-confirm-area">
+          {!pending && context?.action === 'build' && <div className={`validation ${buildError ? 'bad' : 'good'}`} role="status">{buildError ?? '✓ 位置合法，可以建造。'}</div>}
+          {!pending && context?.action !== 'build' && playCommand && <div className={`validation ${playError ? 'bad' : 'good'}`} role="status">{playError ?? '✓ 满足条件，可以打出。'}</div>}
+          {!context && !pending && <><label className="ark-x-control">增强强度 · 使用 X<input aria-label="使用 X 标记" type="number" min={0} max={player.x} value={spendX} disabled={readOnly} onChange={event => setSpendX(Math.max(0, Math.min(player.x, Number(event.target.value))))} /></label>{player.doubleTokens.length > 0 && <><label className="ark-check-label"><input type="checkbox" checked={useDouble} onChange={event => setUseDouble(event.target.checked)} />使用对应行动上的双重标记</label>{useDouble && <label className="ark-x-control">最多消耗双重标记<input aria-label="消耗双重标记数量" type="number" min={1} max={Math.max(...player.row.map(action => player.doubleTokens.filter(token => token === action).length))} value={doubleCount} onChange={event => setDoubleCount(Math.max(1, Math.min(player.doubleTokens.length, Number(event.target.value))))} /></label>}</>}</>}
+          {pending && <button className="primary full" aria-label="确认选择" disabled={readOnly || choiceSelection.length < pending.min || choiceSelection.length > pending.max} onClick={() => send({ type: 'resolve', choiceId: pending.id, options: choiceSelection })}>确认选择{choiceSelection.length > 0 ? ` · ${choiceSelection.length}` : ''}</button>}
+          {context?.action === 'build' && !pending && <button className="primary full" disabled={readOnly || Boolean(buildError)} onClick={() => send(buildCommand)}>确认建造</button>}
+          {card && selected?.source !== 'tableau' && playCommand && !pending && context?.action !== 'build' && <button className="primary full" disabled={readOnly || Boolean(playError)} onClick={() => send(playCommand)}>{card.kind === 'animal' ? '确认安置动物' : '确认打出赞助商'}</button>}
+          {selected?.source === 'market' && context?.action === 'cards' && !pending && humanOptions.filter(option => (option.command.type === 'draw' || option.command.type === 'snap') && option.command.card === selected.id).map(option => <button className="primary full" key={option.id} disabled={readOnly} onClick={() => send(option.command)}>{option.command.type === 'snap' ? '精选此展示牌' : '抓取此展示牌'}</button>)}
+          {context?.action === 'cards' && !pending && <button className="primary full" disabled={readOnly || Boolean(arkGame.validateCommand(displayed.state, 'p1', { type: 'draw', source: 'deck', card: '' }))} onClick={() => send({ type: 'draw', source: 'deck', card: '' })}>从牌库抓 1 张</button>}
+          {context?.action === 'sponsors' && !pending && <button className="secondary full" disabled={readOnly || Boolean(arkGame.validateCommand(displayed.state, 'p1', { type: 'income' }))} onClick={() => send({ type: 'income' })}>休息 +{context.strength} · 领取 {context.strength * (context.upgraded ? 2 : 1)} 资金</button>}
+          {context?.action === 'association' && !pending && <><button className="primary full" type="submit" form="ark-association-form" disabled={readOnly || !associationOptions.length}>确认协会任务</button><button className="secondary full" disabled={readOnly || Boolean(arkGame.validateCommand(displayed.state, 'p1', { type: 'donate' }))} onClick={() => send({ type: 'donate' })}>捐赠 {donationCost(view.donations)} 资金</button></>}
+          {context && !pending && <button className="secondary full" disabled={readOnly || Boolean(arkGame.validateCommand(displayed.state, 'p1', { type: 'finish' }))} onClick={() => send({ type: 'finish' })}>结束本次行动</button>}
+          <small>{aiTurn ? 'AI 自动完成行动，无需切换座位' : pending ? '选择已暂存，确认后继续结算' : context ? '操作与确认固定在此处' : '先选择行动，强度从左到右递增'}</small>
+        </div>
+      </aside>
+    </div>
+    {result && <section className="ark-result panel" data-testid="ark-result"><span className="eyebrow">FINAL SCORING</span><h2>{result.winners.length === 2 ? '双方共享胜利' : result.winners.includes('p1') ? '你的动物园获胜' : '林野动物园 AI 获胜'}</h2><p>{result.scores.map(score => `${view.players.find(player => player.id === score.player)!.name}：${score.points} 分（魅力 ${score.appeal} / 保护 ${score.conservation} / 项目 ${score.projects}）`).join('；')}</p><a className="secondary" href="#/lobby">再来一局</a><button className="text-button" onClick={() => { setJournal(true); }}>查看回放</button></section>}
+    {journal && <div className="ark-journal-shade" onClick={() => setJournal(false)} />}
+    <details className="ark-log panel" open={journal} onToggle={event => setJournal(event.currentTarget.open)}><summary>对局日志与回放 · {displayed.commands.length} 步</summary><button className="text-button ark-close-journal" onClick={() => setJournal(false)}>关闭</button>
+      <div className="replay-tools"><label htmlFor="ark-replay">回放修订</label><input id="ark-replay" type="range" min={0} max={session.state.revision} value={replayRevision ?? session.state.revision} onChange={event => setReplayRevision(Number(event.target.value))} /><span>{replayRevision ?? session.state.revision}/{session.state.revision}</span><button className="text-button" disabled={replayRevision === null} onClick={() => { setReplayRevision(null); }}>返回当前对局</button></div>
+      <label className="ark-check-label"><input type="checkbox" checked={coordinates} onChange={event => setCoordinates(event.target.checked)} />显示地图坐标</label>
+      <div className="ark-log-entries">{log.map((entry, index) => <button key={`${entry.revision}-${index}`} onClick={() => { setReplayRevision(entry.revision); setJournal(false); }}><span>#{entry.revision}</span>{entry.message}</button>)}</div>
+    </details>
   </div>;
 }

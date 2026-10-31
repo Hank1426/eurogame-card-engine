@@ -34,6 +34,8 @@ jobs:
       - run: pnpm simulate --seeds 20
       - run: pnpm simulate:ark --seeds 3
       - run: pnpm simulate:ark --seeds 3 --map 0 --output .artifacts/ark-simulation-map0
+      - run: pnpm simulate:ark --seeds 3 --map 1 --output .artifacts/ark-simulation-map1
+      - run: pnpm simulate:ark --seeds 3 --map 2 --output .artifacts/ark-simulation-map2
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
       - name: Keep original-content diagnostics
@@ -47,6 +49,8 @@ jobs:
             .artifacts/simulation/
             .artifacts/ark-simulation/
             .artifacts/ark-simulation-map0/
+            .artifacts/ark-simulation-map1/
+            .artifacts/ark-simulation-map2/
           retention-days: 7
       - name: Keep tested public site
         uses: actions/upload-artifact@v4

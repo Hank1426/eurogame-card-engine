@@ -1,17 +1,17 @@
 import { z } from 'zod';
 import type { CoreState, GameEvent, QueueItem, Session } from '@eurogame/engine-core';
-import type { Building, BuildingKind, MapId } from './board.js';
+import { MAP_IDS, type Building, type BuildingKind, type MapId } from './board.js';
 import type { ArkAction } from './index.js';
 
 export const arkConfigSchema = z.object({
-  map: z.enum(['A', '0']).default('A'),
+  map: z.enum(MAP_IDS).default('A'),
   playerCount: z.literal(2).default(2),
-  pool: z.literal('stage-three-v1').default('stage-three-v1')
+  pool: z.literal('stage-four-v1').default('stage-four-v1')
 }).strict();
 export type ArkConfig = z.infer<typeof arkConfigSchema>;
 export const arkCommandSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('begin'), action: z.enum(['animals', 'build', 'cards', 'association', 'sponsors']), spendX: z.number().int().min(0).max(5).default(0), useDouble: z.boolean().optional() }).strict(),
-  z.object({ type: z.literal('take-x'), action: z.enum(['animals', 'build', 'cards', 'association', 'sponsors']), useDouble: z.boolean().optional() }).strict(),
+  z.object({ type: z.literal('begin'), action: z.enum(['animals', 'build', 'cards', 'association', 'sponsors']), spendX: z.number().int().min(0).max(5).default(0), useDouble: z.boolean().optional(), doubleCount: z.number().int().min(1).max(100).optional() }).strict(),
+  z.object({ type: z.literal('take-x'), action: z.enum(['animals', 'build', 'cards', 'association', 'sponsors']), useDouble: z.boolean().optional(), doubleCount: z.number().int().min(1).max(100).optional() }).strict(),
   z.object({ type: z.literal('build'), kind: z.enum(['enclosure-1', 'enclosure-2', 'enclosure-3', 'enclosure-4', 'enclosure-5', 'kiosk', 'pavilion', 'petting', 'reptile-house', 'aviary']), q: z.number().int(), r: z.number().int(), rotation: z.number().int().min(0).max(5), flip: z.boolean() }).strict(),
   z.object({ type: z.literal('draw'), source: z.enum(['deck', 'market']), card: z.string().default('') }).strict(),
   z.object({ type: z.literal('snap'), card: z.string() }).strict(),
@@ -62,12 +62,17 @@ export type ArkEffect =
   | { type: 'worker' }
   | { type: 'clever' }
   | { type: 'move-action'; action: ArkAction }
+  | { type: 'boost'; action: ArkAction }
+  | { type: 'boost-action'; action: ArkAction; slot: 1 | 5 }
+  | { type: 'dig'; count: number }
+  | { type: 'dig-card'; source: 'hand' | 'market'; card: string }
+  | { type: 'trigger-order'; triggers: { id: string; label: string; effects: QueueItem<ArkEffect>[] }[] }
   | { type: 'sell' | 'pouch'; count: number; host: string }
   | { type: 'remove-hand'; card: string; mode: 'discard' | 'sell' | 'pouch'; host: string }
   | { type: 'hunt' | 'perception' | 'scavenge'; count: number }
   | { type: 'keep-revealed'; card: string }
   | { type: 'discard-revealed' }
-  | { type: 'snap'; count: number; refill: boolean; range: boolean }
+  | { type: 'snap'; count: number; refill: boolean; range: boolean; optional?: boolean }
   | { type: 'take-market'; card: string }
   | { type: 'refill' }
   | { type: 'final-choice' }
@@ -144,7 +149,7 @@ export interface ArkState extends CoreState {
   finalTurns: number | null;
   endingTrigger: string | null;
   context: ArkActionContext | null;
-  repeatContext: { action: ArkAction; strength: number; upgraded: boolean; after: QueueItem<ArkEffect>[] } | null;
+  repeatContext: { action: ArkAction; strength: number; upgraded: boolean; after: QueueItem<ArkEffect>[]; remaining: number } | null;
   queue: QueueItem<ArkEffect>[];
   pending: ArkChoice | null;
   choiceSequence: number;

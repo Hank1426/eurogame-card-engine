@@ -29,6 +29,10 @@ jobs:
         run: pnpm simulate:ark --seeds 20 --max-decisions 1500
       - name: Verify Ark Nova map 0 games
         run: pnpm simulate:ark --seeds 20 --map 0 --max-decisions 1500 --output .artifacts/ark-simulation-map0
+      - name: Verify Ark Nova observation tower games
+        run: pnpm simulate:ark --seeds 20 --map 1 --max-decisions 1500 --output .artifacts/ark-simulation-map1
+      - name: Verify Ark Nova outdoor areas games
+        run: pnpm simulate:ark --seeds 20 --map 2 --max-decisions 1500 --output .artifacts/ark-simulation-map2
       - name: Keep reproduction files
         if: always()
         uses: actions/upload-artifact@v4
@@ -38,4 +42,6 @@ jobs:
             .artifacts/simulation/
             .artifacts/ark-simulation/
             .artifacts/ark-simulation-map0/
+            .artifacts/ark-simulation-map1/
+            .artifacts/ark-simulation-map2/
           retention-days: 7

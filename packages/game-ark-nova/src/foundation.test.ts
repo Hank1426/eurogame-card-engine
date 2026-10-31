@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { initialActionRow, cardActionTable, animalCapacity, selectAction } from './foundation.js';
-import { MAP_A, adjacentTerrain, appealIncome, buildingCells, kioskIncome, placementError, startingBuildings, victoryScore, crossingAppeal } from './board.js';
+import { MAP_A, adjacentTerrain, adjacentTerrainCells, appealIncome, buildingCells, kioskIncome, placementError, startingBuildings, victoryScore, crossingAppeal } from './board.js';
+import { housingError } from './rules.js';
 
 describe('阶段一 · 行动与地图 A 验收', () => {
   it('动物固定在槽位 1，其他四张按种子洗牌', () => {
@@ -49,5 +50,26 @@ describe('阶段一 · 行动与地图 A 验收', () => {
     expect(crossingAppeal(20)).toBe(64);
     expect(victoryScore(64, 20)).toBe(100);
     expect(victoryScore(0, 0)).toBe(-14);
+  });
+  it('截图回归：共同邻接的起始贩售亭不是岩石，五格区邻接两水零岩', () => {
+    const cells = [{ q: 1, r: 3 }, { q: 2, r: 2 }, { q: 2, r: 3 }, { q: 3, r: 2 }, { q: 3, r: 3 }];
+    const building = { id: 'screenshot-five', kind: 'enclosure-5' as const, cells, animals: [] };
+    expect(placementError(startingBuildings(), building.kind, cells, false)).toBeNull();
+    expect(adjacentTerrainCells(cells, 'water').map(cell => [cell.q, cell.r])).toEqual([[2, 4], [3, 4]]);
+    expect(adjacentTerrainCells(cells, 'rock')).toEqual([]);
+    expect(housingError(building, '421')).toBe('需要邻接 1 个不同岩石格。');
+    expect(adjacentTerrainCells(startingBuildings()[1]!.cells, 'rock').map(cell => [cell.q, cell.r])).toEqual([[1, 5]]);
+    expect(startingBuildings()[0]!.kind).toBe('kiosk');
+    expect(MAP_A.find(cell => cell.q === 0 && cell.r === 3)!.terrain).toBe('land');
+  });
+  it('地形检查区分地图、按不同地形格计数，合法五格区可安置海狗', () => {
+    const cells = buildingCells('enclosure-5', { q: 2, r: 1 }, 1, false);
+    expect(placementError(startingBuildings(), 'enclosure-5', cells, false)).toBeNull();
+    expect(adjacentTerrain(cells, 'rock', 'A')).toBeGreaterThan(0);
+    expect(adjacentTerrain(cells, 'water', 'A')).toBeGreaterThan(0);
+    expect(housingError({ id: 'valid-five', kind: 'enclosure-5', cells, animals: [] }, '421', 'A')).toBeNull();
+    const single = [{ q: 0, r: 0 }, { q: 0, r: 1 }];
+    expect(adjacentTerrain(single, 'water', 'A')).toBe(0);
+    expect(adjacentTerrain(single, 'water', '0')).toBeGreaterThan(0);
   });
 });

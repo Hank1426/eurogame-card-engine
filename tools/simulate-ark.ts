@@ -2,7 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { applyCommand, createSession, exportArchive, importArchive, fingerprint } from '@eurogame/engine-core';
-import { arkGame, arkActor, chooseArkCommand } from '@eurogame/game-ark-nova';
+import { arkGame, arkActor, chooseArkCommand, MAP_IDS, type MapId } from '@eurogame/game-ark-nova';
 
 const { values } = parseArgs({ options: {
   seeds: { type: 'string', default: '10' },
@@ -12,8 +12,8 @@ const { values } = parseArgs({ options: {
 } });
 const seeds = Number(values.seeds);
 const limit = Number(values['max-decisions']);
-if (values.map !== 'A' && values.map !== '0') throw new Error('map 必须为 A 或 0。');
-const map = values.map;
+if (!MAP_IDS.includes(values.map as MapId)) throw new Error(`map 必须为 ${MAP_IDS.join(' / ')}。`);
+const map = values.map as MapId;
 if (!Number.isInteger(seeds) || seeds < 1 || seeds > 1000 || !Number.isInteger(limit) || limit < 1 || limit > 10_000) throw new Error('种子数量或步数上限不正确。');
 const output = resolve(values.output!);
 await mkdir(output, { recursive: true });

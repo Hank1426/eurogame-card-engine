@@ -235,11 +235,11 @@ export function App() {
 
   if (loading) return <main className="loading"><LeafMark /><p>正在准备工作台…</p></main>;
 
-  return <div className="app-shell">
+  return <div className={`app-shell ${route === 'ark' && arkSession ? 'ark-focus' : ''}`}>
     <aside className="sidebar">
       <a className="brand" href="#/lobby"><span className="brand-mark"><LeafMark /></span><span>EUROGAME<small>ENGINE LAB</small></span></a>
       <div className="workspace-label">你的桌游实验室 <span>LOCAL</span></div>
-      <nav aria-label="工作台导航">{navigation.map(item => <a key={item.id} href={`#/${item.id}`} className={route === item.id ? 'active' : ''} aria-current={route === item.id ? 'page' : undefined}>
+      <nav aria-label="工作台导航">{navigation.map(item => <a key={item.id} href={`#/${item.id}`} aria-label={item.label} title={item.label} className={route === item.id ? 'active' : ''} aria-current={route === item.id ? 'page' : undefined}>
         <span className="nav-symbol">{item.symbol}</span><span>{item.label}<small>{item.caption}</small></span>
       </a>)}</nav>
       <div className="sidebar-note"><span className="eyebrow">BUILD SOMETHING PLAYABLE</span><p>从一次行动，<br />到一套可信的规则。</p><span className="tiny">确定性 · 可回放 · 可复用</span></div>
@@ -267,7 +267,7 @@ export function App() {
         /> : route === 'layout' ? <LayoutLab /> : route === 'coverage' ? <>
           <div className="page-intro"><span className="eyebrow">ARK NOVA / IMPLEMENTATION TRACKER</span><h1>让每一条规则，<br />都有据可查。</h1><p>资料覆盖、程序实现与人工复核分别记录。方舟首个可玩版已开放，仍使用限定牌池；完整基础版尚未验收。</p></div>
           <div className="coverage-counters">{arkCoverage.targets.map(target => <div className="panel coverage-counter" key={target.category}><span>{target.label}</span><strong>{arkCoverage.cards.filter(card => card.category === target.category && card.implemented).length}<small> / {target.expected}</small></strong><span className="tiny">规则实现数量</span></div>)}</div>
-          <div className="panel coverage-panel"><SectionHeading eyebrow="RULE TRACEABILITY" title="双人基础版规则矩阵" extra={<span className="pill">地图 A / 0 · 阶段三</span>} />
+          <div className="panel coverage-panel"><SectionHeading eyebrow="RULE TRACEABILITY" title="双人基础版规则矩阵" extra={<span className="pill">地图 A / 0 / 1 / 2 · 阶段四</span>} />
             <table><thead><tr><th>规则</th><th>依据</th><th>实现进度</th></tr></thead><tbody>{arkCoverage.rules.map(rule => <tr key={rule.id}><td><strong>{rule.label}</strong><small>{rule.id}</small></td><td>{rule.source}</td><td><span className={`pill ${rule.status === 'tested' ? 'green' : 'subtle'}`}>{rule.status === 'tested' ? '已测试 · 待人工核对' : '尚未实现'}</span></td></tr>)}</tbody></table>
           </div>
         </> : route === 'catalog' ? <>

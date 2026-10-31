@@ -26,6 +26,27 @@ export interface ZooCard {
 }
 type AnimalRow = [string, string, number, number, number, number, number, number, number, string[], string[], [string, number | string][]];
 const animalRows: AnimalRow[] = [
+  ['408','懒熊',3,14,6,0,0,0,0,['predator','bear','asia'],[],[['BOOST_ASSOCIATION',1]]],
+  ['415','北美浣熊',1,11,4,0,0,0,0,['predator','bear','americas'],[],[['BOOST_ASSOCIATION',1]]],
+  ['416','普通棕熊',5,20,8,0,0,0,1,['predator','bear','europe'],['bear','animalsII'],[['MULTIPLIER_ASSOCIATION',1],['FULL_THROATED',1]]],
+  ['419','欧洲獾',2,5,3,0,0,0,0,['predator','europe'],[],[['BOOST_ANIMAL',1]]],
+  ['428','长颈鹿',3,16,7,0,0,0,0,['herbivore','africa'],[],[['BOOST_SPONSORS',1]]],
+  ['434','小熊猫',2,16,6,0,0,0,0,['herbivore','bear','asia'],['science','science'],[['MULTIPLIER_SPONSORS',1]]],
+  ['435','亚洲貘',2,17,5,0,1,0,0,['herbivore','asia'],[],[['DIGGING',3]]],
+  ['440','山貘',2,15,4,1,0,1,0,['herbivore','americas'],[],[['DIGGING',2]]],
+  ['445','非洲冕豪猪',1,8,3,0,0,0,0,['herbivore','europe'],[],[['DIGGING',2]]],
+  ['446','儒艮',5,25,9,1,0,0,2,['herbivore','australia','australia'],['animalsII'],[['DIGGING',4]]],
+  ['457','山魈',5,28,9,2,0,0,0,['primate','primate','africa'],['primate','primate','primate'],[['MULTIPLIER_CARD',1]]],
+  ['466','玻利维亚红吼猴',3,12,6,0,0,0,0,['primate','americas'],[],[['BOOST_CARD',1]]],
+  ['497','小红鹳',2,15,6,0,0,0,1,['bird','africa'],[],[['POSTURING',1]]],
+  ['501','蓝孔雀',3,18,7,0,0,0,0,['bird','asia'],['asia'],[['POSTURING',2]]],
+  ['502','双角犀鸟',2,13,6,0,0,0,0,['bird','asia'],[],[['BOOST_BUILDING',1]]],
+  ['508','五彩金刚鹦鹉',1,16,4,0,0,0,0,['bird','americas'],['Partner Zoo'],[['POSTURING',3]]],
+  ['510','白鹳',4,9,4,0,0,0,0,['bird','europe'],['europe'],[['MULTIPLIER_BUILDING',1]]],
+  ['511','大红鹳',3,16,7,0,0,0,1,['bird','europe'],[],[['POSTURING',1]]],
+  ['516','单垂鹤鸵',3,12,6,0,0,0,0,['bird','australia'],['Partner Zoo'],[['MULTIPLIER_BUILDING',1]]],
+  ['518','小极乐鸟',1,15,5,0,0,0,0,['bird','australia'],[],[['POSTURING',1]]],
+  ['524','曼加利察猪',1,7,0,0,0,0,0,['pet'],[],[['DIGGING',1],['PETTING_ZOO_ANIMAL',1]]],
   ['401','猎豹',5,17,6,0,0,0,0,['predator','predator','africa'],[],[['SPRINT',3]]],
   ['402','狮子',4,16,9,0,0,0,0,['predator','africa'],['predator','predator','predator'],[['PACK',1]]],
   ['403','花豹',3,20,7,1,0,1,0,['predator','africa'],['Partner Zoo'],[['HUNTER',4]]],
@@ -104,7 +125,14 @@ const animalRows: AnimalRow[] = [
   ['527','虹彩吸蜜鹦鹉',1,7,0,0,0,0,0,['pet'],[],[['PETTING_ZOO_ANIMAL',1]]],
   ['528','红颈袋鼠',1,7,0,0,0,0,0,['pet'],[],[['POUCH',1],['PETTING_ZOO_ANIMAL',1]]]
 ];
-const sponsorRows: [string, string, number, string[], string[], number][] = [
+const sponsorRows: [string, string, number, string[], string[], number, number?, number?][] = [
+  ['201','科学实验室',5,['science'],['sponsorsII'],0], ['202','发言人',5,['science'],['science'],0],
+  ['204','科学博物馆',4,['science'],['science','science','science','science'],0],
+  ['205','大猩猩野外研究',3,['science'],['science','science','science'],2,1],
+  ['206','医学突破',5,['science'],['science','science','science','science'],0], ['208','科学图书馆',4,['science'],[],0],
+  ['210','美洲专家',4,['americas'],[],0], ['211','欧洲专家',5,['europe'],[],0],
+  ['212','澳洲专家',5,['australia'],[],0], ['213','亚洲专家',5,['asia'],[],0], ['214','非洲专家',4,['africa'],[],0],
+  ['223','科研机构',3,['science','science'],[],0], ['241','水文学家',5,['water'],[],0], ['242','地质学家',5,['rock'],[],0],
   ['203','兽医',4,['science'],[],0], ['209','技术研究所',5,['science'],[],0],
   ['220','联邦资助金',4,['science'],[],0], ['225','检疫实验室',3,['science'],[],0],
   ['226','海外研究所',6,['science'],[],2], ['229','小型动物专家',5,[],[],0], ['230','大型动物专家',4,[],[],0],
@@ -123,9 +151,29 @@ export const ABILITY_LABELS: Record<string, string> = {
   SUN_BATHING: '日光浴：可卖出手牌，每张获得 4 资金', POUCH: '育儿袋：可将手牌置于本卡下，每张获得 2 魅力',
   SPONSOR_MAGNET: '赞助商磁石：获得展示区全部赞助商', SNAPPING_1: '精选 1 张展示牌', SNAPPING_2: '精选 2 张展示牌，可在两次间补牌',
   PERCEPTION_4: '洞察：抽 4 张保留 2 张', SCAVENGING: '食腐：洗混弃牌，抽取后保留 1 张', PETTING_ZOO_ANIMAL: '按萌宠图标获得 3 倍魅力',
-  FULL_THROATED: '呼唤：解锁一个事务员'
+  FULL_THROATED: '呼唤：解锁一个事务员',
+  BOOST_ASSOCIATION: '调度协会：行动完成后可移到槽位 1 或 5', BOOST_ANIMAL: '调度动物：行动完成后可移到槽位 1 或 5',
+  BOOST_SPONSORS: '调度赞助商：行动完成后可移到槽位 1 或 5', BOOST_CARD: '调度卡牌：行动完成后可移到槽位 1 或 5',
+  BOOST_BUILDING: '调度建造：行动完成后可移到槽位 1 或 5',
+  MULTIPLIER_ASSOCIATION: '在协会行动上放双重标记', MULTIPLIER_SPONSORS: '在赞助商行动上放双重标记',
+  MULTIPLIER_CARD: '在卡牌行动上放双重标记', MULTIPLIER_BUILDING: '在建造行动上放双重标记',
+  DIGGING: '挖掘：逐次弃换手牌或弃掉展示牌并立即补牌', POSTURING: '展示：逐座免费放置贩售亭或休憩亭'
 };
 export function sponsorDescription(id: string): string {
+  if (id === '201') return '需要赞助商 II。立即及每次休息从牌库或声望范围拿一张牌；终局有 3–5 / 6 个研究图标获得 1 / 2 保护。';
+  if (id === '202') return '每次向自己的动物园打入研究图标，每个获得 1 声望，包括本卡及大学。';
+  if (id === '204') return '立即每个已有研究图标获得 2 资金；每次打入自己的研究图标，每个获得 1 保护，包括本卡。';
+  if (id === '205') return '立即获得 2 声望与 1 保护。';
+  if (id === '206') return '立即每次已支持的保护项目获得 2 魅力；每次休息获得 1 保护。';
+  if (id === '208') return '立即每个研究图标获得 1 魅力；任何动物园每次打入研究图标，每个获得 2 资金；终局有 5 种动物图标获得 1 保护。';
+  if (id === '210') return '立即每个美洲图标获得 1 魅力；每次打入美洲图标可免费建一座贩售亭；终局至少 5 座贩售亭获得 1 保护。';
+  if (id === '211') return '立即每个欧洲图标获得 1 魅力；每次打入欧洲图标可免费建 1 格区；终局至少 5 座占用的 1 格区获得 1 保护。';
+  if (id === '212') return '立即每个澳洲图标获得 1 魅力；每次打入澳洲图标可在本卡下放一张手牌，获得 2 魅力。';
+  if (id === '213') return '立即每个亚洲图标获得 1 魅力；每次打入亚洲图标可免费建一座休憩亭。';
+  if (id === '214') return '立即每个非洲图标获得 1 魅力；每次打入非洲图标，在当前行动完成后可移动一张行动卡至槽位 1；终局每枚 X 获得 1 魅力。';
+  if (id === '223') return '提供两个研究图标。';
+  if (id === '241') return '立即每个水域图标获得 1 魅力；每覆盖一个邻接水域的格子获得 1 资金，每格只算一次；终局连接全部水域获得 1 保护。';
+  if (id === '242') return '立即每两个岩石图标获得 3 魅力；每覆盖一个邻接岩石的格子获得 1 资金，每格只算一次；终局连接全部岩石获得 1 保护。';
   if (id === '203') return '打出时有 1/2/3 所大学获得 2/5/10 资金；项目所需协会强度降至 4；终局有三所大学获得 1 保护。';
   if (id === '209') return '立即和每次休息获得 1 枚 X；终局有三所大学获得 1 保护。';
   if (id === '220') return '立即和每次休息获得 3 资金；终局声望至少 9，获得 1 保护。';
@@ -169,7 +217,7 @@ const specialSpaces: Record<string, ['reptile-house' | 'aviary', number]> = {
   '481': ['reptile-house', 2], '484': ['reptile-house', 1], '486': ['reptile-house', 0],
   '487': ['reptile-house', 0], '488': ['reptile-house', 0], '489': ['reptile-house', 3],
   '490': ['reptile-house', 2], '491': ['reptile-house', 1], '493': ['reptile-house', 0],
-  '494': ['aviary', 4], '495': ['aviary', 1], '496': ['aviary', 1], '498': ['aviary', 1],
+  '494': ['aviary', 4], '495': ['aviary', 1], '496': ['aviary', 1], '498': ['aviary', 1], '510': ['aviary', 1],
   '499': ['aviary', 1], '500': ['aviary', 1], '504': ['aviary', 1], '506': ['aviary', 1]
 };
 export const ZOO_CARDS: ZooCard[] = [
@@ -179,9 +227,9 @@ export const ZOO_CARDS: ZooCard[] = [
       abilities: abilities.map(([key, value]) => ({ key, value })), strength: 0,
       ...(special ? { specialHousing: { kind: special[0], space: special[1] } } : {}) };
   }),
-  ...sponsorRows.map(([id, name, strength, tags, requirements, reputation]): ZooCard => ({
+  ...sponsorRows.map(([id, name, strength, tags, requirements, reputation, conservation = 0, appeal = 0]): ZooCard => ({
     id, name, kind: 'sponsor', strength, tags, requirements, reputation,
-    size: 0, price: 0, appeal: 0, conservation: 0, rock: 0, water: 0, abilities: []
+    size: 0, price: 0, appeal, conservation, rock: id === '242' ? 1 : 0, water: id === '241' ? 1 : 0, abilities: []
   })),
   ...DECK_PROJECTS.map((project): ZooCard => ({
     id: project.id, name: project.name, kind: 'project', strength: 0, tags: [], requirements: [], reputation: 0,
@@ -223,7 +271,7 @@ export const FINAL_CARDS = [
   { id: '011', name: '水生态公园', metric: 'water', thresholds: [2, 4, 6, 8] }
 ];
 export const ARK_LIMITATIONS = [
-  '当前支持双人地图 A / 0、三种特殊饲养区、20 张牌库保护项目和随机保护奖励；动物与赞助商仍使用限定牌池。',
-  '额外行动、毒液、缠绕与其它未入池卡牌能力仍待后续完成；不代表完整基础版已验收。',
+  '当前支持双人地图 A / 0 / 1 / 2、观测塔与户外营地、三种特殊饲养区、20 张牌库保护项目和随机保护奖励；动物与赞助商仍使用限定牌池。',
+  '本批补充调度、双重、挖掘、展示与科研／大洲／地形赞助商；额外行动、群居、毒液、缠绕与其它未入池能力仍待完成，不代表完整基础版已验收。',
   '当前规则版本与旧首版存档不兼容，旧文件保留，不自动按新规则修改。'
 ];

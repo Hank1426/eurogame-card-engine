@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { BotanicalArt, LeafMark } from '@eurogame/ui-kit';
+import { MAP_IDS, MAP_INFO, type MapId } from '@eurogame/game-ark-nova';
 
 export interface MatchSettings {
   game: 'garden-lab' | 'ark-nova';
   mode: 'ai';
   playerCount: number;
   seed: number;
-  map?: 'A' | '0';
+  map?: MapId;
 }
 
 export interface CurrentMatch {
@@ -14,7 +15,7 @@ export interface CurrentMatch {
   round: number;
   roundLimit: number;
   finished: boolean;
-  map?: 'A' | '0';
+  map?: MapId;
 }
 
 export function MatchLobby({ currentMatch, arkMatch = null, onStart }: {
@@ -26,7 +27,7 @@ export function MatchLobby({ currentMatch, arkMatch = null, onStart }: {
   const [playerCount, setPlayerCount] = useState(2);
   const [seed, setSeed] = useState('');
   const [error, setError] = useState('');
-  const [map, setMap] = useState<'A' | '0'>('A');
+  const [map, setMap] = useState<MapId>('A');
   const isDemo = game === 'garden-lab';
 
   function start() {
@@ -56,8 +57,8 @@ export function MatchLobby({ currentMatch, arkMatch = null, onStart }: {
         </button>
         <button className={`game-choice ark-choice ${!isDemo ? 'selected' : ''}`} aria-pressed={!isDemo} onClick={() => { setGame('ark-nova'); setPlayerCount(2); setError(''); }}>
           <div className="game-choice-heading"><span className="pill green">首个可玩版 · 限定牌池</span><span className="choice-indicator">{!isDemo ? '✓' : ''}</span></div>
-          <span className="ark-emblem" aria-hidden="true">⬡</span><span className="eyebrow">ARK NOVA / STAGE THREE</span><h3>方舟动物园</h3><p>规划特殊馆、放归动物、支持动态保护项目，体验随机保护奖励。选择地图 A 或地图 0，与 AI 完成双人对局。</p>
-          <div className="game-choice-meta"><span>双人 AI</span><span>地图 A / 0</span></div>
+          <span className="ark-emblem" aria-hidden="true">⬡</span><span className="eyebrow">ARK NOVA / STAGE FOUR</span><h3>方舟动物园</h3><p>规划特殊馆、放归动物、支持保护项目。选择基础地图或观测塔、户外营地，体验扩展牌池并与 AI 完成双人对局。</p>
+          <div className="game-choice-meta"><span>双人 AI</span><span>地图 A / 0 / 1 / 2</span></div>
         </button>
       </section>
       <section className="panel match-settings" aria-labelledby="match-settings-title">
@@ -70,7 +71,7 @@ export function MatchLobby({ currentMatch, arkMatch = null, onStart }: {
         <select id="match-player-count" value={playerCount} onChange={event => setPlayerCount(Number(event.target.value))}>
           <option value={2}>2 人 · 你 + 1 位 AI</option>{isDemo && <><option value={3}>3 人 · 你 + 2 位 AI</option><option value={4}>4 人 · 你 + 3 位 AI</option></>}
         </select>
-        {!isDemo && <><label className="player-count-label" htmlFor="ark-map-choice" style={{ marginTop: 18 }}>动物园地图</label><select id="ark-map-choice" value={map} onChange={event => setMap(event.target.value as 'A' | '0')}><option value="A">地图 A · 预置贩售亭与 3 格饲养区</option><option value="0">地图 0 · 空白起步，首座建筑覆盖边界</option></select></>}
+        {!isDemo && <><label className="player-count-label" htmlFor="ark-map-choice" style={{ marginTop: 18 }}>动物园地图</label><select id="ark-map-choice" value={map} onChange={event => setMap(event.target.value as MapId)}>{MAP_IDS.map(id => <option key={id} value={id}>地图 {id} · {MAP_INFO[id].name}</option>)}</select><p className="muted" data-testid="ark-map-description" style={{ marginTop: 8 }}>{MAP_INFO[map].description}</p></>}
         <div className="seat-preview" aria-label={`${playerCount} 个座位`}><span className="seat human"><span>你</span><small>玩家</small></span>{Array.from({ length: playerCount - 1 }, (_, index) => <span className="seat bot" key={index}><span>AI</span><small>电脑 {index + 1}</small></span>)}</div>
         {isDemo ? <div className="match-brief"><strong>这一局如何获胜？</strong><p>每轮每人行动一次。第 6 轮收入结算后，得分最高者获胜；同分并列。</p><a href="#/rules">第一次玩？阅读完整规则 ↗</a></div> : <div className="match-brief"><strong>经营动物园，让魅力与保护相遇</strong><p>五行动强度由槽位决定，没有固定轮数。两条轨道相遇后进入最后回合，再结算秘密终局目标。本版含 20 张牌库项目与随机保护奖励，动物与赞助商仍使用限定牌池。</p><a href="#/ark-rules">阅读方舟规则与支持范围 ↗</a></div>}
         <details className="seed-settings"><summary>高级设置</summary><label>随机种子<input value={seed} onChange={event => setSeed(event.target.value)} inputMode="numeric" placeholder="留空则随机生成" /></label><p className="tiny">相同种子和相同行动，可以重现同一局。</p></details>

@@ -1,4 +1,4 @@
-import { readdir, readFile } from 'node:fs/promises';
+import { access, readdir, readFile } from 'node:fs/promises';
 import { resolve, relative, isAbsolute } from 'node:path';
 import type { Plugin } from 'vite';
 
@@ -11,6 +11,12 @@ export function localReferenceAssets(): Plugin {
         const id = file.match(/^[AS](\d{3})_/i)?.[1];
         if (id && /\.(jpg|png|webp)$/i.test(file)) entries[id] = `/__ark_reference__/${folder}/${encodeURIComponent(file)}`;
       }
+    }
+    for (const [key, file] of Object.entries({
+      projectAtlas: 'projects.jpg', badges: 'zoo-card-badges.webp',
+      tiles: 'enclosures.jpg', mapA: 'maps/plana.jpg', map1: 'maps/plan1.jpg', map2: 'maps/plan2.jpg'
+    })) {
+      if (await access(resolve(root, file)).then(() => true).catch(() => false)) entries[key] = `/__ark_reference__/${file}`;
     }
     return entries;
   }
@@ -25,7 +31,7 @@ export function localReferenceAssets(): Plugin {
         }
         const file = resolve(root, `.${path}`);
         const local = relative(root, file);
-        if (isAbsolute(local) || local.startsWith('..') || !/^(animals|sponsors)[/\\][^/\\]+\.(jpg|png|webp)$/i.test(local)) {
+        if (isAbsolute(local) || local.startsWith('..') || !/^(?:(animals|sponsors)[/\\][^/\\]+\.(jpg|png|webp)|projects\.jpg|zoo-card-badges\.webp|enclosures\.jpg|maps[/\\]plan[a12]\.jpg)$/i.test(local)) {
           response.statusCode = 404; response.end(); return;
         }
         const bytes = await readFile(file);

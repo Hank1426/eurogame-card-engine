@@ -49,6 +49,9 @@ export function chooseArkCommand(view: ArkView, decision: Decision<ArkCommand>):
         if (candidate.id.startsWith('repeat-')) return 15 - Number(candidate.id.split('-')[1]);
         if (candidate.id === 'skip') return 0;
         if (candidate.id.startsWith('transfer-')) return 20;
+        if (candidate.id.startsWith('boost-')) return candidate.id.endsWith('-5') ? 20 : 0;
+        if (candidate.id === 'printed') return 10;
+        if (candidate.id.startsWith('sponsor-')) return 8;
         if (candidate.id.startsWith('free-')) return 8;
         if (candidate.id.startsWith('posture-')) return 8;
         if (['science', 'reputation', 'hand'].includes(candidate.id)) return candidate.id === 'science' && (tagsOf(player).science ?? 0) < 2 ? 12 : 8;
@@ -79,6 +82,9 @@ export function chooseArkCommand(view: ArkView, decision: Decision<ArkCommand>):
     });
     if (pending.prompt.includes('日光浴') || pending.prompt.includes('育儿袋')) {
       ranked = ranked.filter(option => option.card && (cardValue(player, option.card) < 7 || player.hand.length > 5));
+    }
+    if (pending.prompt.includes('挖掘')) {
+      ranked = ranked.filter(option => option.card && (option.id.startsWith('dig-hand-') ? cardValue(player, option.card) < 6 : cardValue(player, option.card) < 4));
     }
     return { type: 'resolve', choiceId: pending.id, options: ranked.slice(0, Math.max(pending.min, Math.min(pending.max, ranked.length))).map(option => option.id) };
   }
