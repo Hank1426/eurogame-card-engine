@@ -2,6 +2,7 @@ import { useEffect, useId } from 'react';
 import { hexKey } from '@eurogame/mechanisms';
 import { mapCells, MAP_INFO, nextToLandmark, housingCapacity, buildingUsedSpace, BUILDING_NAMES, zooCard, adjacentTerrainCells, housingError, type ArkPlayer } from '@eurogame/game-ark-nova';
 import { ArkIcon } from './ArkIcon.js';
+import { useArkGuide } from './ArkGuide.js';
 import { ATLASES, SPRITES } from '../../asset-definitions.js';
 import { preloadAsset, useArkAssets } from './asset-store.js';
 
@@ -25,18 +26,22 @@ function buildingBorder(cells: { q: number; r: number }[]): string {
     return [`M${center.x + 33.5 * Math.cos(first)} ${center.y + 33.5 * Math.sin(first)}L${center.x + 33.5 * Math.cos(second)} ${center.y + 33.5 * Math.sin(second)}`];
   })).join(' ');
 }
-export function ArkMap({ player, draft, valid, onCell, selectedBuilding, onBuilding, showCoordinates = false, assets = {}, animal, interaction }: {
+export function ArkMap({ player, draft, valid, onCell, selectedBuilding, onBuilding, showCoordinates = false, assets = {}, animal: selectedAnimal, interaction }: {
   player: ArkPlayer; draft: { q: number; r: number }[]; valid: boolean;
   onCell: (q: number, r: number) => void; selectedBuilding: string | null;
   onBuilding: (id: string) => void; showCoordinates?: boolean; assets?: Record<string, string>; animal?: string;
   interaction?: { locked: boolean; rotation: number; flip: boolean; anchors: string[]; onHover: (q: number, r: number) => void; onRotate: () => void; onFlip: () => void; onUnlock: () => void };
 }) {
   const unique = useId().replaceAll(':', '');
+  const guide = useArkGuide();
+  const focus = guide?.focus;
+  const animal = focus?.cardId && (focus.kind === 'terrain' || focus.kind === 'housing') ? focus.cardId : selectedAnimal;
   const assetState = useArkAssets();
   const occupied = new Map(player.buildings.flatMap(building => building.cells.map(cell => [hexKey(cell), building] as const)));
   const previews = new Set(draft.map(hexKey));
   const selected = player.buildings.find(building => building.id === selectedBuilding);
-  const terrain = new Set(selected && animal ? ['water', 'rock'].flatMap(terrain => adjacentTerrainCells(selected.cells, terrain as 'water' | 'rock', player.map)).map(hexKey) : []);
+  const terrainKinds: ('water' | 'rock')[] = focus?.kind === 'terrain' && (focus.key === 'water' || focus.key === 'rock') ? [focus.key] : ['water', 'rock'];
+  const terrain = new Set(selected && animal ? terrainKinds.flatMap(terrain => adjacentTerrainCells(selected.cells, terrain, player.map)).map(hexKey) : []);
   const eligible = new Set(animal ? player.buildings.filter(building => !housingError(building, animal, player.map, player.sponsors.includes('219'))).map(building => building.id) : []);
   const landmark = MAP_INFO[player.map].landmark;
   const anchors = new Set(interaction?.anchors);
@@ -50,7 +55,7 @@ export function ArkMap({ player, draft, valid, onCell, selectedBuilding, onBuild
     const atlas = ATLASES.find(atlas => atlas.alias === sprite.atlas)!;
     return <pattern key={name} id={`${unique}-${name}`} width="1" height="1" patternContentUnits="objectBoundingBox"><svg width="1" height="1" viewBox={sprite.rect.join(' ')} preserveAspectRatio="none"><image href={assets[sprite.atlas]} width={atlas.width} height={atlas.height} /></svg></pattern>;
   }
-  return <div className={`ark-map-panel ${interaction ? 'is-placing' : ''}`} data-placement-locked={interaction?.locked ?? false} data-preview-rotation={interaction?.rotation} data-preview-flip={interaction?.flip}><div className="ark-map-heading"><span>动物园地图 {player.map} · {MAP_INFO[player.map].name}</span><span title={MAP_INFO[player.map].description}>覆盖全部可建造格：+7 魅力</span></div>
+  return <div className={`ark-map-panel ${interaction ? 'is-placing' : ''}`} data-guided-terrain={focus?.kind === 'terrain' ? focus.key : undefined} data-placement-locked={interaction?.locked ?? false} data-preview-rotation={interaction?.rotation} data-preview-flip={interaction?.flip}><div className="ark-map-heading"><span>动物园地图 {player.map} · {MAP_INFO[player.map].name}</span><span title={MAP_INFO[player.map].description}>覆盖全部可建造格：+7 魅力</span></div>
     <svg className="ark-map" viewBox="5 40 520 465" role="group" aria-label={`${player.name} 地图 ${player.map}`}>
       <defs><pattern id={`${unique}-grass`} width="13" height="13" patternUnits="userSpaceOnUse"><path d="m3 9 2-3 1 3m5-6-1 3" stroke="#96ae62" strokeWidth=".7" opacity=".6" /></pattern>
         {pattern('landmark', `landmark.${player.map}`)}{pattern('rock', 'terrain.rock')}{pattern('land', 'terrain.land')}

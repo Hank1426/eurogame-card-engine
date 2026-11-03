@@ -6,12 +6,15 @@ import {
 } from '@eurogame/game-ark-nova';
 import { ArkArtwork } from './ArkArtwork.js';
 import { ArkIcon } from './ArkIcon.js';
+import { ArkProjectCheck } from './ArkProjectCheck.js';
+import { useArkGuide } from './ArkGuide.js';
 
 const tabs = { projects: '保护项目', zoo: '我的园区', association: '协会', scores: '轨道与目标', opponent: 'AI 园区' };
 export function ArkOverview({ view, assets, inspect }: {
   view: ArkView; assets: Record<string, string>; inspect: (id: string, source: 'tableau') => void;
 }) {
   const [tab, setTab] = useState<keyof typeof tabs>('projects');
+  const guide = useArkGuide();
   const player = view.players[0]!;
   const other = view.players[1]!;
   const active = tab;
@@ -27,7 +30,7 @@ export function ArkOverview({ view, assets, inspect }: {
             <div className="ark-project-art"><ArkArtwork id={project.id} assets={assets} /><strong>{project.name}</strong></div>
             <div className="ark-project-tiers">{project.thresholds.map((threshold, tier) =>
               <div className={current.blocked === tier ? 'blocked' : current.claimed[tier] ? `claimed ${current.claimed[tier]}` : ''} key={tier} title={`${threshold} ${TAG_NAMES[project.tag]}，奖励 ${project.points[tier]} 保护点`}>
-                <strong><ArkIcon name={project.tag} assets={assets} />{threshold}</strong><span>⬟ {project.points[tier]}</span>
+                <ArkProjectCheck id={project.id} tag={project.tag} needed={threshold} player={player} blocked={current.blocked === tier} claimed={current.claimed[tier] ?? null}><strong><ArkIcon name={project.tag} assets={assets} />{threshold}</strong></ArkProjectCheck><span>⬟ {project.points[tier]}</span>
                 <small>{current.blocked === tier ? '封锁' : current.claimed[tier] === 'p1' ? '你已支持' : current.claimed[tier] ? 'AI 已支持' : `你有 ${projectMetric(player, project.tag)}`}</small>
               </div>)}</div>
           </article>;
@@ -40,14 +43,14 @@ export function ArkOverview({ view, assets, inspect }: {
             <p className="ark-project-description">{projectDescription(project.id)}</p>
             <div className="ark-project-tiers">{project.thresholds.map((need, tier) =>
               <div className={current.claimed[tier] ? `claimed ${current.claimed[tier]}` : ''} key={tier}>
-                <strong>{mode === 'release' ? ['4–5 格', '3 格', '1–2 格'][tier] : mode === 'breed' ? '动物 + 合作' : `${need} ${TAG_NAMES[project.tag]}`}</strong>
+                {mode === 'release' || mode === 'breed' ? <strong>{mode === 'release' ? ['4–5 格', '3 格', '1–2 格'][tier] : '动物 + 合作'}</strong> : <ArkProjectCheck id={project.id} tag={project.tag} needed={need} player={player} claimed={current.claimed[tier] ?? null}><strong><ArkIcon name={project.tag} assets={assets} />{need}</strong></ArkProjectCheck>}
                 <span>⬟ {project.points[tier]}</span><small>{current.claimed[tier] === 'p1' ? '你已支持' : current.claimed[tier] ? 'AI 已支持' : '可竞争'}</small>
               </div>)}</div></article>;
         }) : <p className="muted">协会行动可从手牌打出项目并立即支持。</p>}</div>
       </div>
       <div hidden={active !== 'zoo'}>
         <div className="ark-mini-heading"><strong>已安置动物与赞助商</strong><small>{player.animals.length} 动物 / {player.sponsors.length} 赞助商</small></div>
-        <div className="ark-tableau-cards">{[...player.animals, ...player.sponsors].map(id => <button key={id} onClick={() => inspect(id, 'tableau')}><ArkIcon name={zooCard(id).tags[0] ?? 'science'} assets={assets} />{zooCard(id).name}</button>)}</div>
+        <div className="ark-tableau-cards">{[...player.animals, ...player.sponsors].map(id => <button key={id} data-card-id={id} className={guide?.sourceCards.includes(id) ? 'guide-source' : ''} onClick={() => inspect(id, 'tableau')}><ArkIcon name={zooCard(id).tags[0] ?? 'science'} assets={assets} />{zooCard(id).name}</button>)}</div>
         {!player.animals.length && !player.sponsors.length && <p className="muted">点击底部手牌，在右侧查看条件与打出。</p>}
         <div className="ark-tag-summary">{Object.entries(tagsOf(player)).filter(([, count]) => count > 0).map(([tag, count]) => <span key={tag}><ArkIcon name={tag} assets={assets} />{count}</span>)}</div>
         <div className="ark-mini-heading"><strong>合作动物园与大学</strong></div>

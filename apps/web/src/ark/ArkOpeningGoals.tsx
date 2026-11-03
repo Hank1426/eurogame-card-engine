@@ -2,6 +2,7 @@ import { FINAL_CARDS, TAG_NAMES, projectById, type ArkView } from '@eurogame/gam
 import { ArkArtwork } from './ArkArtwork.js';
 import { ArkIcon } from './ArkIcon.js';
 import { ArkHint } from './ArkHint.js';
+import { ArkProjectCheck } from './ArkProjectCheck.js';
 
 export function ArkOpeningGoals({ view, assets }: { view: ArkView; assets: Record<string, string> }) {
   const player = view.players.find(player => player.id === 'p1')!;
@@ -11,9 +12,9 @@ export function ArkOpeningGoals({ view, assets }: { view: ArkView; assets: Recor
         const project = projectById(current.id);
         return <article className="ark-opening-project" key={current.id} aria-label={project.name}>
           <div className="ark-opening-project-title"><ArkArtwork id={project.id} assets={assets} /><strong>{project.name}</strong></div>
-          <div className="ark-opening-tiers">{project.thresholds.map((threshold, tier) => <ArkHint key={tier} label={`${project.name}：${threshold} ${TAG_NAMES[project.tag]}，${project.points[tier]} 保护点${current.blocked === tier ? '，双人封锁' : ''}`} detail={current.blocked === tier ? '此等级在本局双人设置中不可支持。' : '通过协会行动支持；满足图标、行动强度与事务员要求。同一项目每人仅一次。'} className={current.blocked === tier ? 'blocked' : ''}>
+          <div className="ark-opening-tiers">{project.thresholds.map((threshold, tier) => <ArkProjectCheck key={tier} id={project.id} tag={project.tag} needed={threshold} player={player} blocked={current.blocked === tier} className={current.blocked === tier ? 'blocked' : ''}>
             <span><ArkIcon name={project.tag} assets={assets} /><b>{threshold}</b></span><span>{current.blocked === tier ? '×' : '→'}<ArkIcon name="conservation" assets={assets} />{project.points[tier]}</span>
-          </ArkHint>)}</div>
+          </ArkProjectCheck>)}</div>
         </article>;
       })}</div>
     </div>

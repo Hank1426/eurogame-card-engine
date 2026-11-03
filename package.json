@@ -21,6 +21,7 @@
     "assets:inventory": "tsx tools/inventory-assets.ts",
     "ui:capture": "tsx tools/capture-ui.ts",
     "ui:capture:ark": "tsx tools/capture-ark-ui.ts",
+    "ui:capture:guide": "tsx tools/capture-ark-guide.ts",
     "simulate": "tsx apps/simulator/src/cli.ts",
     "simulate:ark": "tsx tools/simulate-ark.ts",
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"

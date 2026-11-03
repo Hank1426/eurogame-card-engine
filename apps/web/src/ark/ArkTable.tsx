@@ -16,6 +16,8 @@ import { ArkRequirements } from './ArkRequirements.js';
 import { ArkOverview } from './ArkOverview.js';
 import { ArkPlayers } from './ArkPlayers.js';
 import { ArkOpeningGoals } from './ArkOpeningGoals.js';
+import { ArkGuide } from './ArkGuide.js';
+import { ArkActionHelp } from './ArkActionHelp.js';
 import { ArkAssociation } from './ArkAssociation.js';
 import { useArkAssets } from './asset-store.js';
 import { legalBuildAnchors, placementKey, placementOptions, recommendedPlacements, type BuildCommand } from './placement-model.js';
@@ -195,7 +197,7 @@ export function ArkTable({ session, onSessionChange }: { session: ArkSession; on
         {option.card && <span>✦ 终局卡</span>}{option.label}<small>{choiceSelection.includes(option.id) ? '✓ 已选' : '点击选择'}</small>
       </button>)}</div>;
 
-  return <div className="ark-table" data-testid="ark-table">
+  return <ArkGuide view={view} selectedBuilding={selectedBuilding} inspectionKey={selected?.id ?? null}><div className="ark-table" data-testid="ark-table">
     <header className="ark-game-heading"><div><span className="ark-title-mark">A</span><h1>方舟动物园 <small>地图 {player.map} · 双人实验版</small></h1></div>
       <div className="ark-heading-links"><a href="#/ark-rules">游戏规则 ↗</a><a href="#/assets" title={art.catalog.source.notice}>{art.loading ? '资源加载中' : art.catalog.referenceAvailable ? '本地美术已连接' : '内置美术'}</a><button className="text-button" aria-expanded={journal} onClick={() => setJournal(value => !value)}>日志与回放</button><details><summary>支持范围</summary><div><p>{ZOO_CARDS.filter(card => card.kind === 'animal').length} 动物 / {ZOO_CARDS.filter(card => card.kind === 'sponsor').length} 赞助商 / 32 保护项目 / 11 终局卡</p>{ARK_LIMITATIONS.map(limit => <p key={limit}>{limit}</p>)}<p>规则 {arkGame.manifest.rulesVersion}</p><p>{assets.tiles ? '本地参考素材 · 不进入公开构建' : '独立示意图 · 未加载本地参考素材'}</p></div></details></div>
     </header>
@@ -233,7 +235,7 @@ export function ArkTable({ session, onSessionChange }: { session: ArkSession; on
         return <article data-action={action} className={`ark-action-card ${action} ${context?.action === action ? 'current' : ''}`} key={action}>
           <span className="ark-action-strength">{index + 1}{spendX > 0 && <small>+{spendX}</small>}{view.constriction.p1?.includes(action) && <small className="ark-token-constriction">−2</small>}</span>
           {view.venom.p1?.includes(action) && <span className="ark-token-venom" title="毒液：执行此卡可移除毒液，否则回合末支付 2 资金">毒</span>}
-          <button className="ark-action-main" aria-label={`选择${ACTION_NAMES[action]}行动`} title={reason ?? `${ACTION_NAMES[action]}，强度 ${index + 1 + spendX}`} disabled={readOnly || Boolean(reason)} onClick={() => send(begin)}><ArkIcon name={action} assets={assets} /><strong>{ACTION_NAMES[action]}{player.doubleTokens.includes(action) ? ' ×2' : ''}</strong><small>{player.upgrades.includes(action) ? 'II' : 'I'}</small></button>
+          <ArkActionHelp action={action} player={player} view={view} spendX={spendX} doubles={doubles} reason={reason}><button className="ark-action-main" aria-label={`选择${ACTION_NAMES[action]}行动`} disabled={readOnly || Boolean(reason)} onClick={() => send(begin)}><ArkIcon name={action} assets={assets} /><strong>{ACTION_NAMES[action]}{player.doubleTokens.includes(action) ? ' ×2' : ''}</strong><small>{player.upgrades.includes(action) ? 'II' : 'I'}</small></button></ArkActionHelp>
           <button className="ark-take-x" disabled={readOnly || Boolean(context) || Boolean(pending) || player.x >= 5} onClick={() => send({ type: 'take-x', action, useDouble: doubles > 0, ...(doubles ? { doubleCount: doubles } : {}) })}>{doubles ? `消耗 ${doubles} 双重 · +${doubles + 1} X` : '改为获得 X'}</button>
         </article>;
       })}</div></section>
@@ -296,5 +298,5 @@ export function ArkTable({ session, onSessionChange }: { session: ArkSession; on
       <label className="ark-check-label"><input type="checkbox" checked={coordinates} onChange={event => setCoordinates(event.target.checked)} />显示地图坐标</label>
       <div className="ark-log-entries">{log.map((entry, index) => <button key={`${entry.revision}-${index}`} onClick={() => { setReplayRevision(entry.revision); setJournal(false); }}><span>#{entry.revision}</span>{entry.message}</button>)}</div>
     </details>
-  </div>;
+  </div></ArkGuide>;
 }

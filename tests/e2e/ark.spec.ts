@@ -104,6 +104,8 @@ test('阶段二验收：卡牌抓三弃一必须完整执行，手牌和市场�
 });
 
 test('阶段二验收：正常整局的最后回合通过界面完成，终局与回放一致', async ({ page }) => {
+  // Includes searching several complete games before exercising the browser.
+  test.setTimeout(60_000);
   const session = naturalCheckpoint(current => current.state.finalTurns === 1 && current.state.stage === 'turn' && !current.state.pending && current.state.activePlayer === 'p1');
   await importGame(page, session);
   await page.getByRole('button', { name: '选择赞助商行动', exact: true }).click();

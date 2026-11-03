@@ -40,23 +40,35 @@ export function tagsOf(player: ArkPlayer): Record<string, number> {
   if (player.universities.includes('reputation')) add('science');
   return counts;
 }
-export function requirementError(player: ArkPlayer, cardId: string): string | null {
+export interface CardRequirementCheck {
+  tag: string; required: number; actual: number; maximum: boolean;
+  missing: number; waived: number; met: boolean;
+}
+export function cardRequirementChecks(player: ArkPlayer, cardId: string): CardRequirementCheck[] {
   const card = zooCard(cardId);
   const tags = tagsOf(player);
   const counts: Record<string, number> = {};
   for (const requirement of card.requirements) counts[requirement] = (counts[requirement] ?? 0) + 1;
   let ignored = card.kind === 'animal' && card.size >= 4 && player.sponsors.includes('263') ? 1 : 0;
-  for (const [tag, count] of Object.entries(counts)) {
-    let missing: number;
-    if (tag === 'animalsII' || tag === 'sponsorsII') {
-      missing = Number(!player.upgrades.includes(tag === 'animalsII' ? 'animals' : 'sponsors'));
-    } else if (tag === 'Partner Zoo') {
-      missing = card.kind === 'animal' ? Number(!card.tags.some(continent => player.partners.includes(continent))) : Math.max(0, count - player.partners.length);
-    } else if (tag === 'appeal') missing = Number(player.appeal > 25);
-    else if (tag === 'reputation') missing = Number(player.reputation < (card.id === '227' || card.id === '263' ? 6 : 3));
-    else missing = Math.max(0, count - (tags[tag] ?? 0));
-    if (missing > ignored) return tag === 'animalsII' || tag === 'sponsorsII' ? `需要${tag === 'animalsII' ? '动物' : '赞助商'}行动 II。` : tag === 'Partner Zoo' ? card.kind === 'animal' ? '需要该动物起源大洲的合作动物园。' : `需要 ${count} 个合作动物园。` : tag === 'appeal' ? '此牌要求魅力不超过 25。' : tag === 'reputation' ? `此牌要求至少 ${card.id === '227' || card.id === '263' ? 6 : 3} 声望。` : `未满足 ${tag} ×${count} 的前置条件。`;
-    ignored -= missing;
+  return Object.entries(counts).map(([tag, count]) => {
+    const required = tag === 'appeal' ? 25 : tag === 'reputation' ? card.id === '227' || card.id === '263' ? 6 : 3 : count;
+    const actual = tag === 'animalsII' || tag === 'sponsorsII' ? Number(player.upgrades.includes(tag === 'animalsII' ? 'animals' : 'sponsors'))
+      : tag === 'Partner Zoo' ? card.kind === 'animal' ? Number(card.tags.some(continent => player.partners.includes(continent))) : player.partners.length
+      : tag === 'appeal' ? player.appeal : tag === 'reputation' ? player.reputation : tags[tag] ?? 0;
+    const deficit = Math.max(0, tag === 'appeal' ? actual - required : required - actual);
+    const threshold = tag === 'appeal' || tag === 'reputation';
+    const units = threshold ? Number(deficit > 0) : deficit;
+    const waived = Math.min(units, ignored);
+    ignored -= waived;
+    return { tag, required, actual, maximum: tag === 'appeal', missing: units <= waived ? 0 : threshold ? deficit : deficit - waived, waived, met: units <= waived };
+  });
+}
+export function requirementError(player: ArkPlayer, cardId: string): string | null {
+  const card = zooCard(cardId);
+  const unmet = cardRequirementChecks(player, cardId).find(check => !check.met);
+  if (unmet) {
+    const { tag, required } = unmet;
+    return tag === 'animalsII' || tag === 'sponsorsII' ? `需要${tag === 'animalsII' ? '动物' : '赞助商'}行动 II。` : tag === 'Partner Zoo' ? card.kind === 'animal' ? '需要该动物起源大洲的合作动物园。' : `需要 ${required} 个合作动物园。` : tag === 'appeal' ? '此牌要求魅力不超过 25。' : tag === 'reputation' ? `此牌要求至少 ${required} 声望。` : `未满足 ${tag} ×${required} 的前置条件。`;
   }
   if (card.kind === 'animal' && player.sponsors.includes('227') && player.animalFocus && (player.animalFocus === 'small' ? card.size >= 4 : card.size <= 2)) return '此动物与世界动物园协会特别任务的方向冲突。';
   return null;

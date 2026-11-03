@@ -28,3 +28,4 @@ export { BONUS_TILES, BONUS_NAMES } from './bonuses.js';
 export type { ArkCommand, ArkConfig, ArkState, ArkView, ArkPlayer, ArkSession, ArkChoice } from './types.js';
 export { chooseArkCommand } from './ai.js';
 export { breakIncome } from './income.js';
+export { cardRequirementChecks, type CardRequirementCheck } from './rules.js';

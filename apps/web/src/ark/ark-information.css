@@ -11,6 +11,19 @@
 .ark-hint { position: relative; cursor: help; border-radius: 3px; }
 .ark-hint:focus-visible { outline: 2px solid #387555; outline-offset: 1px; }
 .ark-hint:hover { background: #ffffff75; }
+.ark-table .guide-linked { outline: 2px solid #b07c21; outline-offset: 1px; background: #f8ebc2; opacity: 1; }
+.ark-table .ark-tableau-cards .guide-source { border-color: #aa7a25; background: #f7edcc; color: #62491a; }
+.ark-action-help { display: flex; flex: 1; min-height: 0; width: 100%; }
+.ark-action-help:focus-visible { outline-offset: -2px; }
+.ark-action-help-content .ark-strength-formula { font-weight: 650; padding: 5px 8px; background: #edf1df; border-radius: 4px; margin-bottom: 8px; }
+.ark-action-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.ark-action-comparison > section { padding: 8px; background: #f1f0e6; border-radius: 5px; }
+.ark-action-comparison > section.current-side { background: #e5eedb; }
+.ark-action-comparison h3 { font-size: 12px; margin: 0 0 6px; }
+.ark-action-comparison p { margin: 5px 0; font-size: 11px; }
+.ark-action-help-content .ark-action-unavailable { padding-top: 7px; color: #8c492d; }
+.ark-project-check { display: inline-flex; align-items: center; }
+.ark-project-check > strong { display: inline-flex; align-items: center; gap: 3px; }
 .ark-player-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px 3px; }
 .ark-player-metrics > .ark-hint { display: flex; align-items: center; gap: 4px; min-width: 0; height: 25px; }
 .ark-player-metrics .ark-icon { width: 20px; height: 20px; flex-shrink: 0; }
