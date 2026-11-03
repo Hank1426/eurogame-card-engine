@@ -26,11 +26,19 @@ try {
   await page.locator('.ark-choice-options .ark-card').first().waitFor();
   await page.waitForLoadState('networkidle');
   await page.screenshot({ path: `${directory}/ark-setup.png`, fullPage: true });
+  for (const viewport of [{ width: 1366, height: 768 }, { width: 1440, height: 900 }, { width: 1920, height: 1080 }]) {
+    await page.setViewportSize(viewport);
+    await page.screenshot({ path: `${directory}/ark-setup-${viewport.width}.png` });
+  }
   await page.getByLabel('导入对局文件').setInputFiles(`${directory}/ark-midgame.replay.json`);
   await page.getByRole('button', { name: '选择建造行动', exact: true }).waitFor();
   await page.waitForLoadState('networkidle');
   await page.screenshot({ path: `${directory}/ark-table.png`, fullPage: true });
   await page.screenshot({ path: `${directory}/ark-table-viewport.png` });
+  await page.getByTestId('p1-income').hover();
+  await page.getByRole('tooltip').waitFor();
+  await page.screenshot({ path: `${directory}/ark-income-detail.png` });
+  await page.keyboard.press('Escape');
   await page.locator('.ark-board-columns').scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${directory}/ark-map-viewport.png` });
   for (const viewport of [{ width: 1366, height: 768 }, { width: 1440, height: 900 }, { width: 1920, height: 1080 }]) {
@@ -67,5 +75,5 @@ try {
     await page.setViewportSize({ width: 1920, height: 1080 });
   }
   if (errors.length) throw new Error(errors.join('\n'));
-  console.log('已生成地图 A / 0 / 1 / 2 的牌桌截图，以及三个桌面尺寸的操作面板截图。');
+  console.log('已生成地图 A / 0 / 1 / 2、双人信息、收入明细，以及三个桌面尺寸的留牌与操作面板截图。');
 } finally { await browser.close(); }

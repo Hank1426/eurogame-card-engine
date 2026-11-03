@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  appealIncome, crossingAppeal, victoryScore, availableWorkers, tagsOf, projectById, projectMetric,
+  breakIncome, crossingAppeal, victoryScore, availableWorkers, tagsOf, projectById, projectMetric,
   DECK_PROJECTS, projectDescription, FINAL_CARDS, BONUS_NAMES, TAG_NAMES, UNIVERSITY_NAMES,
   zooCard, donationCost, type ArkView
 } from '@eurogame/game-ark-nova';
@@ -70,7 +70,7 @@ export function ArkOverview({ view, assets, inspect }: {
               <span className="ark-score-token appeal-token" style={{ left: `${Math.min(97, candidate.appeal / 114 * 100)}%` }}>♟{candidate.appeal}</span>
               <span className="ark-score-token conservation-token" style={{ left: `${Math.min(97, Math.max(0, crossingAppeal(candidate.conservation)) / 114 * 100)}%` }}>⬟{candidate.conservation}</span></div>
           </div>)}
-          <p className="muted">你的休息收入：{appealIncome(player.appeal)} 资金 + 建筑、赞助商与项目奖励。</p>
+          <p className="muted">你的当前休息收入：{breakIncome(player).money} 资金。悬停右侧收入图标查看明细。</p>
         </div>
         <div className="ark-final-cards"><strong>✦ 你的秘密终局目标</strong>{player.finals.map(id => {
           const final = FINAL_CARDS.find(card => card.id === id)!;

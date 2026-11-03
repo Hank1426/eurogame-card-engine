@@ -1,6 +1,7 @@
 export function ArkGlyph({ name }: { name: string }) {
   const common = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
   const shape = name === 'money' ? <><circle cx="12" cy="12" r="9" /><path d="m12 6 5 6-5 6-5-6Z" /></>
+    : name === 'income' ? <><path d="M20 7A9 9 0 1 0 21 15M20 2v6h-6" /><path d="m12 8 4 4-4 4-4-4Z" /></>
     : name === 'appeal' ? <path d="M5 3h14v5a3 3 0 0 0 0 6v7H5v-7a3 3 0 0 0 0-6ZM9 7h6m-6 10h6" />
     : name === 'conservation' ? <><path d="m12 2 8 4v7q-1 6-8 9-7-3-8-9V6Z" /><path d="M9 16q-1-7 7-9-1 8-7 9m0 0 5-6" /></>
     : name === 'reputation' ? <><path d="m2 9 10-6 10 6-10 6Zm4 3v5q6 5 12 0v-5m4-3v9" /></>

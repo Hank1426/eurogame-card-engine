@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { createSession, exportArchive } from '@eurogame/engine-core';
-import { arkGame, buildCommands, zooCard, type ArkSession } from '@eurogame/game-ark-nova';
+import { arkGame, breakIncome, tagsOf, projectById, FINAL_CARDS, buildCommands, zooCard, type ArkSession } from '@eurogame/game-ark-nova';
 import { preparedArk, arkSubmit, naturalCheckpoint } from './ark-checkpoints.js';
 import { BUILTIN_CATALOG } from '../../apps/web/asset-catalog.js';
 
@@ -17,6 +17,72 @@ async function archive(page: Page) {
   if (!path) throw new Error('导出失败。');
   return JSON.parse(await readFile(path, 'utf8')) as { commands: { actor: string; command: { type: string; choiceId?: string; options?: string[] } }[] };
 }
+
+for (const viewport of [{ width: 1366, height: 768 }, { width: 1440, height: 900 }, { width: 1920, height: 1080 }]) {
+  test(`信息：${viewport.width} 桌面留牌时公共动保、秘密目标和双方摘要同屏`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    const session = createSession(arkGame, {}, 42);
+    await importGame(page, session);
+    const goals = page.getByTestId('ark-opening-goals');
+    for (const project of session.state.projects) {
+      const card = projectById(project.id);
+      await expect(goals.getByRole('article', { name: card.name, exact: true })).toBeVisible();
+    }
+    for (const id of session.state.players[0]!.finals) await expect(goals.getByText(FINAL_CARDS.find(card => card.id === id)!.name, { exact: true })).toBeVisible();
+    await expect(goals.locator('.blocked')).toHaveCount(3);
+    await expect(page.locator('.starting-hand .ark-card')).toHaveCount(8);
+    const surface = (await page.getByRole('region', { name: '起手选牌', exact: true }).boundingBox())!;
+    for (const candidate of await page.locator('.starting-hand .ark-card').all()) {
+      const bounds = (await candidate.boundingBox())!;
+      expect(bounds.y).toBeGreaterThanOrEqual(surface.y);
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(surface.y + surface.height);
+    }
+    const revision = await page.getByTestId('ark-revision').innerText();
+    await goals.locator('.ark-opening-final').first().hover();
+    await expect(page.getByRole('tooltip')).toContainText('10 保护点');
+    expect(await page.getByTestId('ark-revision').innerText()).toBe(revision);
+    await page.keyboard.press('Escape');
+    for (let index = 0; index < 4; index += 1) await page.locator('.starting-hand .ark-card').nth(index).click();
+    const elements = [goals, page.getByTestId('ark-player-p1'), page.getByTestId('ark-player-p2'), page.getByRole('button', { name: '确认选择', exact: true }), page.locator('.starting-hand .ark-card').last()];
+    for (const element of elements) {
+      const bounds = await element.boundingBox();
+      expect(bounds).not.toBeNull();
+      expect(bounds!.y).toBeGreaterThanOrEqual(0);
+      expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height);
+    }
+    await page.getByRole('button', { name: '确认选择', exact: true }).click();
+    await expect(goals).toHaveCount(0);
+    await expect(page.getByTestId('ark-market')).toBeVisible();
+    await expect(page.getByTestId('ark-player-p2')).toBeVisible();
+  });
+}
+
+test('信息：双方全部公开图标与收入持续可见，悬停来源准确且不改变对局', async ({ page }) => {
+  const session = naturalCheckpoint(current => current.state.turns >= 25 && current.state.stage === 'turn' && current.state.activePlayer === 'p1' && current.state.players[0]!.animals.length > 0);
+  await importGame(page, session);
+  const view = arkGame.getPlayerView(session.state, 'p1');
+  for (const player of view.players) {
+    const summary = page.getByTestId(`ark-player-${player.id}`);
+    await expect(summary.locator('.ark-tag-count')).toHaveCount(15);
+    await expect(page.getByTestId(`${player.id}-income`).locator('b')).toHaveText(String(breakIncome(player).money));
+    for (const [tag, count] of Object.entries(tagsOf(player))) await expect(page.getByTestId(`${player.id}-tag-${tag}`).locator('b')).toHaveText(String(count));
+    await expect(summary.getByTestId(`${player.id}-appeal`).locator('b')).toHaveText(String(player.appeal));
+    await expect(summary.getByTestId(`${player.id}-conservation`).locator('b')).toHaveText(String(player.conservation));
+  }
+  await page.getByTestId('p1-income').hover();
+  await expect(page.getByRole('tooltip')).toContainText('魅力收入');
+  await expect(page.getByRole('tooltip')).toContainText(`+${breakIncome(view.players[0]!).money}`);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('tooltip')).toHaveCount(0);
+  const tag = Object.entries(tagsOf(view.players[0]!)).find(([, count]) => count > 0)![0];
+  await page.getByTestId(`p1-tag-${tag}`).focus();
+  await expect(page.getByRole('tooltip')).toContainText('手牌不计入');
+  await page.keyboard.press('Escape');
+  await page.getByRole('tab', { name: 'AI 园区', exact: true }).click();
+  await expect(page.getByTestId('ark-player-p1')).toBeVisible();
+  await expect(page.getByTestId('ark-player-p2')).toBeVisible();
+  await expect(page.getByTestId('ark-revision')).toHaveText(String(session.state.revision));
+});
 
 test('体验：鼠标与键盘快速放大卡牌，浮层不拦截正常选卡', async ({ page }) => {
   const session = preparedArk(42);

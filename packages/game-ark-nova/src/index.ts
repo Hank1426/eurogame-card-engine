@@ -23,7 +23,8 @@ export { arkActor, arkPlayer, tagsOf, animalCost, handLimit, availableWorkers, r
 export { MAP_A, MAP_0, MAP_1, MAP_2, MAP_IDS, MAP_INFO, MAPS, BASIC_BUILDING_KINDS, nextToLandmark, housingCapacity, mapCells, adjacentTerrain, adjacentTerrainCells, BUILDING_SHAPES, BUILDING_NAMES, buildingCells, placementError, appealIncome, victoryScore, crossingAppeal, type Building, type BuildingKind, type MapId } from './board.js';
 export { UNIQUE_BUILDINGS, uniqueKind } from './unique-buildings.js';
 export { ACTION_NAMES, cardActionTable, animalCapacity } from './foundation.js';
-export { ZOO_CARDS, CARD_IDS, zooCard, BASE_PROJECTS, DECK_PROJECTS, projectDescription, FINAL_CARDS, CONTINENTS, TAG_NAMES, ABILITY_LABELS, sponsorDescription, ARK_LIMITATIONS, type ZooCard } from './cards.js';
+export { ZOO_CARDS, CARD_IDS, zooCard, BASE_PROJECTS, DECK_PROJECTS, projectDescription, FINAL_CARDS, CONTINENTS, ANIMAL_TAGS, TAG_NAMES, ABILITY_LABELS, sponsorDescription, ARK_LIMITATIONS, type ZooCard } from './cards.js';
 export { BONUS_TILES, BONUS_NAMES } from './bonuses.js';
 export type { ArkCommand, ArkConfig, ArkState, ArkView, ArkPlayer, ArkSession, ArkChoice } from './types.js';
 export { chooseArkCommand } from './ai.js';
+export { breakIncome } from './income.js';

@@ -3,10 +3,11 @@ import { hexKey, hexNeighbors } from '@eurogame/mechanisms';
 import { ARK_ACTIONS, useAction } from './index.js';
 import { ACTION_NAMES, animalCapacity, cardActionTable, initialActionRow, selectAction } from './foundation.js';
 import { ANIMAL_TAGS, BASE_PROJECTS, DECK_PROJECTS, CARD_IDS, CONTINENTS, FINAL_CARDS, TAG_NAMES, ZOO_CARDS, zooCard, type ZooCard } from './cards.js';
-import { appealIncome, adjacentTerrain, housingCapacity, buildingCells, BUILDING_NAMES, BUILDING_SHAPES, BUILDING_SUPPLY, MAPS, MAP_INFO, nextToLandmark, mapCells, kioskIncome, placementError, startingBuildings, victoryScore } from './board.js';
+import { adjacentTerrain, housingCapacity, buildingCells, BUILDING_NAMES, BUILDING_SHAPES, BUILDING_SUPPLY, MAPS, MAP_INFO, nextToLandmark, mapCells, placementError, startingBuildings, victoryScore } from './board.js';
 import { animalCost, allTerrainConnected, arkActor, arkPlayer, availableWorkers, buildCommands, donationCost, finalCardPoints, handLimit, housingError, canFlock, uniqueCommands, projectById, projectMetric, projectRewardsFor, projectRequirementError, freedEnclosures, releaseHousing, buildingUsedSpace, PROJECT_REWARD_NAMES, reputationRange, requirementError, strengthFor, tagsOf, UNIVERSITY_NAMES, workerCost } from './rules.js';
 import { uniqueKind, uniqueSpec } from './unique-buildings.js';
-import { connectedSpaces, newSponsorFinalAppeal, newSponsorFinalPoints, sideEntranceIncome } from './sponsor-metrics.js';
+import { connectedSpaces, newSponsorFinalAppeal, newSponsorFinalPoints } from './sponsor-metrics.js';
+import { breakIncome, FUNDING_TAGS as fundingTags } from './income.js';
 import { BONUS_TILES, BONUS_NAMES } from './bonuses.js';
 import { arkCommandSchema, arkConfigSchema, type ArkChoice, type ArkChoiceOption, type ArkCommand, type ArkConfig, type ArkEffect, type ArkEvent, type ArkPlayer, type ArkState, type ArkView } from './types.js';
 
@@ -15,7 +16,6 @@ export interface ArkResult {
   scores: { player: string; appeal: number; conservation: number; points: number; projects: number }[];
 }
 const resourceNames = { money: '资金', appeal: '魅力', conservation: '保护', reputation: '声望', x: 'X' };
-const fundingTags: Record<string, string> = { '231': 'primate', '232': 'reptile', '233': 'bird', '234': 'predator', '235': 'herbivore' };
 const expertTags: Record<string, string> = { '236': 'primate', '237': 'reptile', '238': 'bird', '239': 'predator', '240': 'herbivore' };
 const continentExperts: Record<string, string> = { '210': 'americas', '211': 'europe', '212': 'australia', '213': 'asia', '214': 'africa' };
 const abilityActions: Record<string, typeof ARK_ACTIONS[number]> = { ASSOCIATION: 'association', ANIMAL: 'animals', BUILDING: 'build', CARD: 'cards', SPONSORS: 'sponsors' };
@@ -776,16 +776,11 @@ function resolveEffect(state: ArkState, actor: string, effect: ArkEffect, events
       refill(state);
       const income: QueueItem<ArkEffect>[] = [];
       for (const candidate of [player, ...state.players.filter(candidate => candidate.id !== actor)]) {
-        const tags = tagsOf(candidate);
-        let money = appealIncome(candidate.appeal) + kioskIncome(candidate.buildings) + sideEntranceIncome(candidate) +
-          (candidate.projectRewards.includes('income-5') ? 5 : 0) + (candidate.sponsors.includes('220') ? 3 : 0);
-        for (const id of candidate.sponsors) if (fundingTags[id]) {
-          const count = tags[fundingTags[id]!] ?? 0;
-          money += count >= 5 ? 9 : count >= 3 ? 6 : count >= 1 ? 3 : 0;
-        }
-        income.push(gainItem(candidate.id, 'money', money));
+        const preview = breakIncome(candidate);
+        income.push(gainItem(candidate.id, 'money', preview.money));
+        // Keep the two protection rewards separate to preserve event/replay ordering.
         if (candidate.projectRewards.includes('income-cp')) income.push(gainItem(candidate.id, 'conservation', 1));
-        if (candidate.sponsors.includes('209')) income.push(gainItem(candidate.id, 'x', 1));
+        if (preview.x) income.push(gainItem(candidate.id, 'x', preview.x));
         if (candidate.sponsors.includes('206')) income.push(gainItem(candidate.id, 'conservation', 1));
         if (candidate.projectRewards.includes('income-sponsor')) income.push(item(candidate.id, { type: 'offer-paid-sponsor' }));
         if (candidate.projectRewards.includes('snap')) income.push(item(candidate.id, { type: 'snap', count: 1, refill: false, range: false }), item(candidate.id, { type: 'refill' }));

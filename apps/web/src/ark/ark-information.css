@@ -1,0 +1,75 @@
+.ark-players { flex-shrink: 0; background: #edf1e5; border-bottom: 1px solid var(--ark-border); padding: 5px 9px; }
+.ark-player-summary { padding: 5px 0; font-variant-numeric: tabular-nums; }
+.ark-player-summary + .ark-player-summary { border-top: 1px solid #cbd5be; }
+.ark-player-summary > header { display: flex; align-items: center; justify-content: space-between; height: 19px; }
+.ark-player-summary > header strong { font-size: 11px; font-weight: 650; }
+.ark-player-summary > header > small { font-size: 9px; color: #5e7158; }
+.ark-player-summary > header .ark-hint { display: inline-flex; align-items: center; gap: 5px; }
+.ark-player-dot { width: 6px; height: 6px; border-radius: 50%; background: #849778; }
+.ark-player-summary.p2 .ark-player-dot { background: #6f8ba2; }
+.ark-player-summary.active .ark-player-dot { outline: 2px solid #aecba3; outline-offset: 2px; background: #2e724b; }
+.ark-hint { position: relative; cursor: help; border-radius: 3px; }
+.ark-hint:focus-visible { outline: 2px solid #387555; outline-offset: 1px; }
+.ark-hint:hover { background: #ffffff75; }
+.ark-player-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px 3px; }
+.ark-player-metrics > .ark-hint { display: flex; align-items: center; gap: 4px; min-width: 0; height: 25px; }
+.ark-player-metrics .ark-icon { width: 20px; height: 20px; flex-shrink: 0; }
+.ark-player-metrics b { font-size: 15px; font-weight: 650; white-space: nowrap; }
+.ark-player-metrics .secondary-metric { height: 21px; color: #52694b; }
+.ark-player-metrics .secondary-metric .ark-icon { width: 15px; height: 15px; }
+.ark-player-metrics .secondary-metric b { font-size: 11px; font-weight: 500; }
+.ark-player-metrics [data-testid="ark-money"] { font-size: 13px; }
+.ark-income-cycle { font-size: 9px; margin-left: -3px; color: #527953; }
+.ark-player-tags { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 1px 2px; border-top: 1px solid #d5deca; padding-top: 3px; margin-top: 2px; }
+.ark-tag-count { display: flex; align-items: center; gap: 2px; min-width: 0; height: 19px; }
+.ark-tag-count .ark-icon { width: 17px; height: 17px; flex-shrink: 0; }
+.ark-tag-count b { font-size: 10px; font-weight: 650; }
+.ark-tag-count.empty { opacity: .48; }
+.ark-tag-count.empty:hover, .ark-tag-count.empty:focus-visible { opacity: 1; }
+.ark-stat-tooltip { position: fixed; z-index: 60; width: 280px; overflow: auto; scrollbar-width: thin; padding: 12px 14px; border: 1px solid #8fa381; border-radius: 8px; background: #fffdf1; color: #294b36; box-shadow: 0 9px 28px #1b352c30; font: 12px/1.6 "Segoe UI", "Microsoft YaHei", sans-serif; }
+.ark-stat-tooltip > strong { display: block; font-size: 13px; padding-bottom: 6px; border-bottom: 1px solid #dce3d0; margin-bottom: 6px; }
+.ark-stat-tooltip p { margin: 2px 0; }
+.ark-stat-tooltip p b { float: right; margin-left: 8px; }
+.ark-stat-tooltip small { display: block; color: #5d7053; font-size: 10px; line-height: 1.6; margin-top: 5px; }
+.ark-opening-goals { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr); gap: 13px; min-width: 0; min-height: 0; }
+.ark-opening-public, .ark-opening-private { display: flex; flex-direction: column; min-width: 0; gap: 5px; }
+.ark-opening-projects { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; flex: 1; min-height: 0; }
+.ark-opening-project { background: #f8faef; border: 1px solid #c7d4b6; border-radius: 6px; overflow: hidden; min-width: 0; }
+.ark-opening-project-title { position: relative; height: 39px; background: #dce7d0; }
+.ark-opening-project-title > strong { position: absolute; inset: auto 0 0; background: #243e31de; color: #fffce8; font-size: 11px; padding: 3px 7px; }
+.ark-opening-tiers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 4px; gap: 2px; }
+.ark-opening-tiers > .ark-hint { display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 10px; }
+.ark-opening-tiers > .blocked { opacity: .45; background: repeating-linear-gradient(135deg, transparent, transparent 3px, #84937914 3px, #84937914 5px); }
+.ark-opening-tiers .ark-icon { width: 15px; height: 15px; }
+.ark-opening-tiers .ark-hint > span { display: flex; align-items: center; gap: 3px; }
+.ark-opening-finals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; flex: 1; }
+.ark-opening-final { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 7px; background: #f1eddf; border: 1px solid #d4ccb2; border-radius: 6px; }
+.ark-opening-final > .ark-icon { width: 24px; height: 24px; flex-shrink: 0; }
+.ark-opening-final strong { display: block; font-size: 11px; }
+.ark-opening-final small { display: block; font-size: 9px; color: #74684d; margin-top: 5px; line-height: 1.7; }
+.ark-kept-cards { display: flex; align-items: center; gap: 7px; min-height: 0; overflow-x: auto; scrollbar-width: thin; }
+.ark-kept-cards > button { display: flex; align-items: center; gap: 4px; flex-shrink: 0; border: 1px solid #aabe98; border-radius: 5px; background: #e8f0df; color: #315d3c; padding: 4px 7px; font-size: 11px; }
+.ark-kept-cards .ark-icon { width: 17px; height: 17px; }
+.ark-kept-cards > button > span:last-child { margin-left: 3px; color: #617453; }
+.ark-kept-cards > p { margin: 0; }
+@media (min-width: 1100px) {
+  .ark-table .ark-play-layout.is-setup { grid-template-rows: 113px minmax(240px, 1fr) 54px 72px; }
+  .ark-table .ark-control-state, .ark-table .ark-confirm-area { flex-shrink: 0; }
+  .ark-table .ark-control-state .ark-operation-steps { margin-top: 4px; }
+}
+@media (min-width: 1700px) { .ark-table .ark-play-layout.is-setup { grid-template-rows: 126px minmax(300px, 1fr) 54px 78px; } }
+@media (min-width: 1100px) and (max-height: 820px) {
+  .ark-table .ark-play-layout.is-setup { grid-template-rows: 95px minmax(195px, 1fr) 54px 66px; }
+  .ark-players { padding: 3px 8px; }
+  .ark-player-summary { padding: 3px 0; }
+  .ark-player-summary > header { height: 17px; }
+  .ark-player-metrics > .ark-hint { height: 22px; }
+  .ark-player-metrics .secondary-metric { height: 18px; }
+  .ark-tag-count { height: 16px; }
+  .ark-tag-count .ark-icon { width: 15px; height: 15px; }
+  .ark-opening-project-title { height: 29px; }
+  .ark-opening-tiers { padding: 2px; }
+  .ark-opening-final { padding: 5px; gap: 4px; }
+  .ark-opening-final > .ark-icon { width: 18px; height: 18px; }
+}
+@media (max-width: 760px) { .ark-opening-goals { grid-template-columns: 1fr; } .ark-opening-projects { min-height: 95px; } }

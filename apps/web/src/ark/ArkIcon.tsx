@@ -4,7 +4,7 @@ import { ArkGlyph } from './ArkGlyph.js';
 import { useAssetStatus } from './asset-store.js';
 export const ICON_NAMES: Record<string, string> = {
   ...TAG_NAMES, money: '资金', appeal: '魅力', conservation: '保护', reputation: '声望', worker: '事务员',
-  x: 'X 标记', animalsII: '动物 II', sponsorsII: '赞助商 II', 'Partner Zoo': '对应大洲合作动物园', enclosure: '饲养区',
+  x: 'X 标记', income: '休息资金收入', animalsII: '动物 II', sponsorsII: '赞助商 II', 'Partner Zoo': '对应大洲合作动物园', enclosure: '饲养区',
   water: '水域', rock: '岩石', kiosk: '贩售亭', pavilion: '休憩亭',
   animals: '动物', build: '建造', cards: '卡牌', association: '协会', sponsors: '赞助商'
 };

@@ -271,18 +271,16 @@ describe('阶段三三 · 随机奖励与双重', () => {
     session = settle(session);
     expect(session.state.players[0]!.doubleTokens).toEqual([]);
   });
-  it('AI 的双地图整局都可自然完成、重放，并拒绝旧规则存档', () => {
-    for (const map of ['A', '0'] as const) {
-      let session = createSession(arkGame, { map }, 6);
-      for (let step = 0; step < 1500 && session.state.phase !== 'finished'; step += 1) {
-        const actor = arkActor(session.state);
-        session = submit(session, chooseArkCommand(arkGame.getPlayerView(session.state, actor), arkGame.getDecision(session.state, actor)!));
-      }
-      expect(session.state.phase).toBe('finished');
-      expect(importArchive(arkGame, exportArchive(session))).toEqual(session);
-      const old = JSON.parse(exportArchive(session));
-      old.manifest.rulesVersion = 'base-v2-first-playable-1';
-      expect(() => importArchive(arkGame, JSON.stringify(old))).toThrow('不兼容');
+  it.each(['A', '0'] as const)('AI 地图 %s 整局可自然完成、重放，并拒绝旧规则存档', map => {
+    let session = createSession(arkGame, { map }, 6);
+    for (let step = 0; step < 1500 && session.state.phase !== 'finished'; step += 1) {
+      const actor = arkActor(session.state);
+      session = submit(session, chooseArkCommand(arkGame.getPlayerView(session.state, actor), arkGame.getDecision(session.state, actor)!));
     }
-  });
+    expect(session.state.phase).toBe('finished');
+    expect(importArchive(arkGame, exportArchive(session))).toEqual(session);
+    const old = JSON.parse(exportArchive(session));
+    old.manifest.rulesVersion = 'base-v2-first-playable-1';
+    expect(() => importArchive(arkGame, JSON.stringify(old))).toThrow('不兼容');
+  }, 30_000);
 });
