@@ -26,15 +26,15 @@ function buildingBorder(cells: { q: number; r: number }[]): string {
     return [`M${center.x + 33.5 * Math.cos(first)} ${center.y + 33.5 * Math.sin(first)}L${center.x + 33.5 * Math.cos(second)} ${center.y + 33.5 * Math.sin(second)}`];
   })).join(' ');
 }
-export function ArkMap({ player, draft, valid, onCell, selectedBuilding, onBuilding, showCoordinates = false, assets = {}, animal: selectedAnimal, interaction }: {
+export function ArkMap({ player, draft, valid, onCell, selectedBuilding, onBuilding, showCoordinates = false, assets = {}, animal: selectedAnimal, interaction, readOnly = false }: {
   player: ArkPlayer; draft: { q: number; r: number }[]; valid: boolean;
   onCell: (q: number, r: number) => void; selectedBuilding: string | null;
-  onBuilding: (id: string) => void; showCoordinates?: boolean; assets?: Record<string, string>; animal?: string;
+  onBuilding: (id: string) => void; showCoordinates?: boolean; assets?: Record<string, string>; animal?: string; readOnly?: boolean;
   interaction?: { locked: boolean; rotation: number; flip: boolean; anchors: string[]; onHover: (q: number, r: number) => void; onRotate: () => void; onFlip: () => void; onUnlock: () => void };
 }) {
   const unique = useId().replaceAll(':', '');
   const guide = useArkGuide();
-  const focus = guide?.focus;
+  const focus = readOnly ? null : guide?.focus;
   const animal = focus?.cardId && (focus.kind === 'terrain' || focus.kind === 'housing') ? focus.cardId : selectedAnimal;
   const assetState = useArkAssets();
   const occupied = new Map(player.buildings.flatMap(building => building.cells.map(cell => [hexKey(cell), building] as const)));
@@ -69,8 +69,8 @@ export function ArkMap({ player, draft, valid, onCell, selectedBuilding, onBuild
         const chosen = building?.id === selectedBuilding;
         const feature = landmark && hexKey(landmark.cell) === key;
         const classes = ['ark-hex', cell.terrain, feature ? 'landmark' : '', building ? 'built' : '', building && buildingUsedSpace(building) > 0 ? 'inhabited' : '', building?.kind === 'kiosk' ? 'kiosk' : '', building?.kind === 'pavilion' ? 'pavilion' : '', previews.has(key) ? valid ? 'draft-valid' : 'draft-invalid' : '', chosen ? 'chosen-building' : '', terrain.has(key) ? 'adjacent-terrain' : '', building && eligible.has(building.id) ? 'eligible-housing' : ''].join(' ');
-        const choose = () => { if (building && !interaction) onBuilding(building.id); else onCell(cell.q, cell.r); };
-        return <g key={key} className={classes}><polygon points={hexPoints(cell.q, cell.r)} data-cell={`${cell.q},${cell.r}`} tabIndex={0} role="button" aria-label={`地图 ${player.map} 格 ${cell.q},${cell.r}${building ? ` ${BUILDING_NAMES[building.kind]}` : ` ${cell.terrain === 'land' ? '空地' : cell.terrain === 'water' ? '水域' : '岩石'}`}`} onPointerEnter={() => interaction?.onHover(cell.q, cell.r)} onPointerMove={() => interaction?.onHover(cell.q, cell.r)} onClick={choose} onKeyDown={event => {
+        const choose = () => { if (readOnly) return; if (building && !interaction) onBuilding(building.id); else onCell(cell.q, cell.r); };
+        return <g key={key} className={classes}><polygon points={hexPoints(cell.q, cell.r)} data-cell={`${cell.q},${cell.r}`} tabIndex={readOnly ? -1 : 0} role="button" aria-disabled={readOnly} aria-label={`地图 ${player.map} 格 ${cell.q},${cell.r}${building ? ` ${BUILDING_NAMES[building.kind]}` : ` ${cell.terrain === 'land' ? '空地' : cell.terrain === 'water' ? '水域' : '岩石'}`}`} onPointerEnter={() => interaction?.onHover(cell.q, cell.r)} onPointerMove={() => interaction?.onHover(cell.q, cell.r)} onClick={choose} onKeyDown={event => {
           if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); choose(); }
         }}><title>{building ? `${BUILDING_NAMES[building.kind]}${building.animals.length ? `：${building.animals.map(id => zooCard(id).name).join('、')}` : ' · 闲置'}` : cell.terrain === 'land' ? `${cell.q},${cell.r}${cell.reward ? ` 放置奖励 ${rewardSymbols[cell.reward]}` : ''}${cell.upgraded ? ' 需要建造 II' : ''}` : cell.terrain}</title></polygon>
           {cell.terrain === 'land' && !building && <polygon points={hexPoints(cell.q, cell.r, 31)} fill={`url(#${unique}-${usable('mapA') && !previews.has(key) ? 'land' : 'grass'})`} className="ark-decor" />}

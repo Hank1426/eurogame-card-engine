@@ -78,6 +78,7 @@ test('信息：双方全部公开图标与收入持续可见，悬停来源准�
   await page.getByTestId(`p1-tag-${tag}`).focus();
   await expect(page.getByRole('tooltip')).toContainText('手牌不计入');
   await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: '公共信息 / 目标 +', exact: true }).click();
   await page.getByRole('tab', { name: 'AI 园区', exact: true }).click();
   await expect(page.getByTestId('ark-player-p1')).toBeVisible();
   await expect(page.getByTestId('ark-player-p2')).toBeVisible();
@@ -110,7 +111,7 @@ test('体验：普通建造跟随预览、锁定、R/F/Esc，确认前不消耗�
   const command = buildCommands(begun.state, begun.state.players[0]!, begun.state.context!.remaining, false, [], Infinity).find(command => command.kind === 'enclosure-2' && command.rotation === 0 && !command.flip)!;
   await importGame(page, session);
   await page.getByRole('button', { name: '选择建造行动', exact: true }).click();
-  await page.getByLabel('建筑类型', { exact: true }).selectOption('enclosure-2');
+  await page.getByRole('radiogroup', { name: '建筑类型', exact: true }).locator('[data-value="enclosure-2"]').click();
   const target = page.locator(`.ark-map [data-cell="${command.q},${command.r}"]`);
   await target.hover();
   await expect(page.locator('.ark-map-panel')).toHaveAttribute('data-placement-locked', 'false');
@@ -141,14 +142,14 @@ test('体验：普通建造跟随预览、锁定、R/F/Esc，确认前不消耗�
   expect(saved.commands.filter(entry => entry.actor === 'p1' && entry.command.type === 'build')).toHaveLength(1);
 });
 
-test('体验：建筑快捷键不会劫持建筑类型选择框', async ({ page }) => {
+test('体验：图标选建筑后仍可用键盘旋转镜像', async ({ page }) => {
   await importGame(page, preparedArk(42));
   await page.getByRole('button', { name: '选择建造行动', exact: true }).click();
-  await page.getByLabel('建筑类型', { exact: true }).focus();
+  await page.locator('.ark-map-panel').getByRole('button', { name: '地图旋转建筑', exact: true }).focus();
   await page.keyboard.press('r');
   await page.keyboard.press('f');
-  await expect(page.locator('.ark-map-panel')).toHaveAttribute('data-preview-rotation', '0');
-  await expect(page.locator('.ark-map-panel')).toHaveAttribute('data-preview-flip', 'false');
+  await expect(page.locator('.ark-map-panel')).toHaveAttribute('data-preview-rotation', '1');
+  await expect(page.locator('.ark-map-panel')).toHaveAttribute('data-preview-flip', 'true');
 });
 
 test('体验：免费奖励建筑直接点击地图，候选列表保持简短，确认只提交一次', async ({ page }) => {
@@ -231,6 +232,7 @@ test('资产：损坏图集只加载一次并统一回退，仍能进行正常�
   await page.route('**/__ark_reference__/catalog.json*', route => route.fulfill({ json: catalog }));
   await page.route('**/__ark_reference__/projects.jpg*', route => { attempts += 1; return route.fulfill({ status: 404 }); });
   await importGame(page, preparedArk(42));
+  await page.getByRole('button', { name: '公共信息 / 目标 +', exact: true }).click();
   await expect(page.locator('.ark-project-art .ark-artwork').first()).toHaveAttribute('data-asset-status', 'failed');
   await expect(page.locator('.ark-project-art .ark-art-fallback').first()).toBeVisible();
   await expect(page.locator('.ark-project-art .ark-art-sprite')).toHaveCount(0);

@@ -40,6 +40,7 @@ test('指引：公共项目显示缺口，已入园来源可联动而手牌不�
   const id = player.animals[0]!;
   const tag = zooCard(id).tags[0]!;
   await open(page, session);
+  await page.getByRole('button', { name: '公共信息 / 目标 +', exact: true }).click();
   await page.getByRole('tab', { name: '我的园区', exact: true }).click();
   await page.getByTestId(`p1-tag-${tag}`).hover();
   await expect(page.locator(`.ark-tableau-cards [data-card-id="${id}"]`)).toHaveClass(/guide-source/);

@@ -41,7 +41,7 @@ test('全牌库：群居自动提供共享选项，打出不增加饲养区占�
   if (command.type !== 'animal') throw new Error('群居检查点错误。');
   await load(page, session);
   await page.getByTestId(command.source === 'hand' ? 'ark-hand' : 'ark-market').getByRole('button', { name: `查看 ${zooCard(command.card).name}`, exact: true }).click();
-  await expect(page.getByLabel('饲养区 · 可直接点地图选择', { exact: true })).toHaveValue('flock');
+  await expect(page.getByRole('radiogroup', { name: '饲养区 · 可直接点地图选择', exact: true }).locator('[data-value="flock"]')).toHaveAttribute('aria-checked', 'true');
   await page.getByRole('button', { name: '确认安置动物', exact: true }).click();
   const archive = await exported(page);
   expect(archive.snapshot.players[0]!.animals).toContain(command.card);

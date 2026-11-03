@@ -3,11 +3,13 @@ import { createPortal } from 'react-dom';
 
 // Delayed pointer dismissal must never leave two explanations open together.
 let activeHint: { current: () => void } | null = null;
+export function dismissArkHint() { activeHint?.current(); }
 
 /** A focusable explanation that escapes the table's clipped/scrolling panels. */
-export function ArkHint({ label, detail, children, className = '', testId, width = 280, onReveal, onDismiss }: {
+export function ArkHint({ label, detail, children, className = '', testId, width = 280, onReveal, onDismiss, interactiveTooltip = true }: {
   label: string; detail: ReactNode; children: ReactNode; className?: string; testId?: string; width?: number;
   onReveal?: () => void; onDismiss?: () => void;
+  interactiveTooltip?: boolean;
 }) {
   const target = useRef<HTMLSpanElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -49,6 +51,6 @@ export function ArkHint({ label, detail, children, className = '', testId, width
   }, [position]);
   return <span ref={target} className={`ark-hint ${className}`} tabIndex={0} role="group" aria-label={label} aria-describedby={position ? id : undefined} data-testid={testId}
     onMouseEnter={open} onMouseLeave={scheduleClose} onFocus={open} onBlur={close}>
-    {children}{position && createPortal(<aside id={id} className="ark-stat-tooltip" role="tooltip" onMouseEnter={cancelClose} onMouseLeave={scheduleClose} style={{ ...position, width: `min(${width}px, calc(100vw - 16px))` }}><strong>{label}</strong><div>{detail}</div></aside>, document.body)}
+    {children}{position && createPortal(<aside id={id} className="ark-stat-tooltip" role="tooltip" onMouseEnter={interactiveTooltip ? cancelClose : undefined} onMouseLeave={interactiveTooltip ? scheduleClose : undefined} style={{ ...position, width: `min(${width}px, calc(100vw - 16px))`, pointerEvents: interactiveTooltip ? 'auto' : 'none' }}><strong>{label}</strong><div>{detail}</div></aside>, document.body)}
   </span>;
 }

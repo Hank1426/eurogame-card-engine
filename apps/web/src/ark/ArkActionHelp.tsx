@@ -33,7 +33,7 @@ export function ArkActionHelp({ action, player, view, spendX, doubles, reason, c
   const strength = context?.strength ?? slot + spendX - penalty;
   const upgraded = context?.upgraded ?? player.upgrades.includes(action);
   const linked = guide?.focus?.kind === 'icon' && guide.linkedTags.includes(`${action}II`);
-  return <ArkHint label={`${ACTION_NAMES[action]}行动说明 · 强度 ${strength}`} className={`ark-action-help ${linked ? 'guide-linked' : ''}`} testId={`action-help-${action}`} width={420} detail={<div className="ark-action-help-content">
+  return <ArkHint label={`${ACTION_NAMES[action]}行动说明 · 强度 ${strength}`} className={`ark-action-help ${linked ? 'guide-linked' : ''}`} testId={`action-help-${action}`} width={420} interactiveTooltip={false} detail={<div className="ark-action-help-content">
     <p className="ark-strength-formula">{context ? `本次强度 ${strength} · 已消耗 ${context.spentX} X · 剩余额度 ${context.remaining}` : `槽位 ${slot} + ${spendX} X${penalty ? ' − 缠绕 2' : ''} = 强度 ${strength}`}</p>
     <div className="ark-action-comparison">{[false, true].map(side => <section className={side === upgraded ? 'current-side' : ''} key={String(side)}><h3>{ACTION_NAMES[action]} {side ? 'II' : 'I'}{side === upgraded ? ' · 当前' : side ? ' · 升级后' : ''}</h3>{actionExplanation(action, strength, side, player).map(line => <p key={line}>{line}</p>)}</section>)}</div>
     {doubles > 0 && <p>消耗 {doubles} 枚双重可先后执行 {doubles + 1} 次；X 只增强当次，后续 X 单独支付。</p>}

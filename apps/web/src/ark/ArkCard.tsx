@@ -7,8 +7,8 @@ import { createPortal } from 'react-dom';
 import { ArkCardPreview } from './ArkCardPreview.js';
 
 export const TAG_SYMBOLS: Record<string, string> = { predator: '🐾', herbivore: '♞', primate: '♟', reptile: '◇', bird: '🪽', bear: '●', pet: '♡', africa: 'AF', americas: 'AM', australia: 'AU', asia: 'AS', europe: 'EU', science: '⚗' };
-export function ArkCard({ id, assets, selected = false, onClick, compact = false }: {
-  id: string; assets: Record<string, string>; selected?: boolean; onClick: () => void; compact?: boolean;
+export function ArkCard({ id, assets, selected = false, onClick, compact = false, staticConditions = false }: {
+  id: string; assets: Record<string, string>; selected?: boolean; onClick: () => void; compact?: boolean; staticConditions?: boolean;
 }) {
   const card = zooCard(id);
   const button = useRef<HTMLButtonElement>(null);
@@ -44,8 +44,8 @@ export function ArkCard({ id, assets, selected = false, onClick, compact = false
     </div>
     <div className="ark-card-name">{card.name}</div>
     <div className="ark-card-tags">{card.tags.map((tag, index) => <span key={`${tag}-${index}`} title={TAG_NAMES[tag]}><ArkIcon name={tag} assets={assets} /></span>)}</div>
-    <ArkRequirements card={card} assets={assets} />
+    <ArkRequirements card={card} assets={assets} useGuide={!staticConditions} />
     {!compact && <p>{card.kind === 'animal' ? card.abilities.length ? card.abilities.map(ability => `${ABILITY_LABELS[ability.key]}${typeof ability.value === 'number' && ability.value > 1 ? ` ${ability.value}` : ''}`).join('；') : '满足条件并支付费用后安置，获得卡面收益。' : card.kind === 'project' ? projectDescription(id) : sponsorDescription(id)}</p>}
     <div className="ark-card-rewards"><span>{card.appeal > 0 ? `♟ ${card.appeal}` : ''}</span><span>{card.conservation > 0 ? `⬟ ${card.conservation}` : ''}</span><span>{card.reputation > 0 ? `◆ ${card.reputation}` : ''}</span></div>
-  </button>{preview && createPortal(<ArkCardPreview id={id} assets={assets} tooltipId={tooltipId} {...preview} />, document.body)}</>;
+  </button>{preview && createPortal(<ArkCardPreview id={id} assets={assets} tooltipId={tooltipId} staticConditions={staticConditions} {...preview} />, document.body)}</>;
 }

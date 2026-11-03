@@ -5,11 +5,12 @@ import { ArkHint } from './ArkHint.js';
 import { useArkGuide } from './ArkGuide.js';
 import { iconSources, type GuideFocus } from './guide-model.js';
 
-export function ArkRequirements({ card, player: suppliedPlayer, state, building: suppliedBuilding, source: suppliedSource, assets, interactive = Boolean(suppliedPlayer) }: {
+export function ArkRequirements({ card, player: suppliedPlayer, state, building: suppliedBuilding, source: suppliedSource, assets, interactive = Boolean(suppliedPlayer), useGuide = true }: {
   card: ZooCard; player?: ArkPlayer; state?: Pick<ArkState, 'market'>; building?: Building;
-  source?: 'hand' | 'market' | 'tableau'; assets: Record<string, string>; interactive?: boolean;
+  source?: 'hand' | 'market' | 'tableau'; assets: Record<string, string>; interactive?: boolean; useGuide?: boolean;
 }) {
-  const guide = useArkGuide();
+  const context = useArkGuide();
+  const guide = useGuide ? context : null;
   const player = guide?.player ?? suppliedPlayer;
   const building = suppliedBuilding ?? player?.buildings.find(building => building.id === guide?.selectedBuilding);
   const market = state?.market ?? guide?.market;

@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { BUILTIN_CATALOG } from '../../apps/web/asset-catalog.js';
 import { createSession, exportArchive } from '@eurogame/engine-core';
-import { arkGame, arkActor, chooseArkCommand, zooCard, projectById, PROJECT_REWARD_NAMES, ACTION_NAMES, type ArkSession } from '@eurogame/game-ark-nova';
+import { arkGame, arkActor, chooseArkCommand, zooCard, projectById, ACTION_NAMES, type ArkSession } from '@eurogame/game-ark-nova';
 import { arkSubmit, preparedArk, naturalCheckpoint, specialHallCheckpoint, terrainCheckpoint } from './ark-checkpoints.js';
 
 async function importGame(page: Page, session: ArkSession) {
@@ -34,7 +34,7 @@ test('阶段一验收：创建、起手选牌、地图、五行动、建造和�
   await expect(page.getByTestId('ark-hand').locator('.ark-card')).toHaveCount(4);
   await expect(page.getByTestId('ark-money')).toHaveText('25 ◈');
   await page.getByRole('button', { name: '选择建造行动', exact: true }).click();
-  await page.getByLabel('建筑类型', { exact: true }).selectOption('enclosure-1');
+  await page.getByRole('radiogroup', { name: '建筑类型', exact: true }).locator('[data-value="enclosure-1"]').click();
   await page.getByRole('button', { name: '↻ 旋转', exact: true }).click();
   await page.getByRole('button', { name: '⇆ 镜像', exact: true }).click();
   await expect(page.getByRole('button', { name: '确认建造', exact: true })).toBeEnabled();
@@ -135,9 +135,11 @@ test('阶段三验收：创建地图 0、边界首建、随机奖励与分槽恢
   await page.getByRole('button', { name: '创建方舟对局 · 与 AI 开始', exact: true }).click();
   await chooseStartingHand(page);
   await expect(page.getByRole('group', { name: '你的动物园 地图 0', exact: true }).getByRole('button')).toHaveCount(58);
+  await page.getByRole('button', { name: '公共信息 / 目标 +', exact: true }).click();
   await expect(page.getByRole('region', { name: '本局随机保护奖励' }).locator('span > b')).toHaveCount(4);
+  await page.getByRole('button', { name: '收起公共信息 −', exact: true }).click();
   await page.getByRole('button', { name: '选择建造行动', exact: true }).click();
-  await page.getByLabel('建筑类型', { exact: true }).selectOption('enclosure-1');
+  await page.getByRole('radiogroup', { name: '建筑类型', exact: true }).locator('[data-value="enclosure-1"]').click();
   await page.getByRole('button', { name: '地图 0 格 4,1 空地', exact: true }).click();
   await expect(page.getByRole('button', { name: '确认建造', exact: true })).toBeDisabled();
   await expect(page.getByRole('status').filter({ hasText: '边界' })).toBeVisible();
@@ -157,7 +159,7 @@ test('阶段三验收：正常对局建成特殊馆后转移，刷新保留一�
   await importGame(page, checkpoint.session);
   if (checkpoint.spendX) await page.getByLabel('使用 X 标记', { exact: true }).fill(String(checkpoint.spendX));
   await page.getByRole('button', { name: '选择建造行动', exact: true }).click();
-  await page.getByLabel('建筑类型', { exact: true }).selectOption(checkpoint.build.kind);
+  await page.getByRole('radiogroup', { name: '建筑类型', exact: true }).locator(`[data-value="${checkpoint.build.kind}"]`).click();
   for (let index = 0; index < checkpoint.build.rotation; index += 1) await page.getByRole('button', { name: '↻ 旋转', exact: true }).click();
   if (checkpoint.build.flip) await page.getByRole('button', { name: '⇆ 镜像', exact: true }).click();
   await page.getByRole('button', { name: `地图 A 格 ${checkpoint.build.q},${checkpoint.build.r} 空地`, exact: true }).click();
@@ -186,16 +188,17 @@ test('阶段三验收：从真实正常局打出放归项目、选择奖励并�
   if (selected.command.type !== 'association') throw new Error('项目检查点错误。');
   const command = selected.command;
   await importGame(page, session);
-  await page.getByLabel('协会任务', { exact: true }).selectOption('project');
-  await page.getByLabel('任务目标', { exact: true }).selectOption(`${command.source ?? 'board'}:${command.target}`);
-  await page.getByLabel('支持等级', { exact: true }).selectOption(String(command.tier));
-  await page.getByLabel('放归动物', { exact: true }).selectOption(command.releaseAnimal!);
-  await page.getByLabel('边缘奖励', { exact: true }).selectOption({ label: PROJECT_REWARD_NAMES[command.reward]! });
+  await page.getByRole('radiogroup', { name: '协会任务', exact: true }).getByRole('radio', { name: '支持保护项目', exact: true }).click();
+  await page.getByRole('radiogroup', { name: '任务目标', exact: true }).locator(`[data-value="${command.source ?? 'board'}:${command.target}"]`).click();
+  await page.getByRole('radiogroup', { name: '支持等级', exact: true }).locator(`[data-value="${command.tier}"]`).click();
+  await page.getByRole('radiogroup', { name: '放归动物', exact: true }).locator(`[data-value="${command.releaseAnimal}"]`).click();
+  await page.getByRole('radiogroup', { name: '边缘奖励', exact: true }).locator(`[data-value="${command.reward}"]`).click();
   await page.getByRole('button', { name: '确认协会任务', exact: true }).click();
   for (let count = 0; count < 6 && await page.getByTestId('ark-choice-prompt').isVisible(); count += 1) {
     await page.locator('.ark-choice-options button').first().click();
     await page.getByRole('button', { name: '确认选择', exact: true }).click();
   }
+  await page.getByRole('button', { name: '公共信息 / 目标 +', exact: true }).click();
   await expect(page.getByTestId('ark-active-projects')).toContainText(projectById(command.target).name);
   await expect(page.getByTestId('ark-active-projects')).toContainText('你已支持');
 });
@@ -244,6 +247,7 @@ test('素材验收：保护项目图集可载入，缺少参考目录时仍有�
   if (manifest.projectAtlas) {
     expect((await request.get(manifest.projectAtlas)).status()).toBe(200);
     await importGame(page, preparedArk(42));
+    await page.getByRole('button', { name: '公共信息 / 目标 +', exact: true }).click();
     const image = page.locator('.ark-project-art .ark-art-sprite').first();
     await expect(image).toBeVisible();
     await expect(page.locator('.ark-project-art .ark-artwork').first()).toHaveAttribute('data-asset-status', 'ready');
@@ -254,6 +258,7 @@ test('素材验收：保护项目图集可载入，缺少参考目录时仍有�
   }
   await page.route('**/__ark_reference__/catalog.json*', route => route.fulfill({ json: BUILTIN_CATALOG }));
   await importGame(page, preparedArk(42));
+  if (await page.getByRole('button', { name: '公共信息 / 目标 +', exact: true }).isVisible()) await page.getByRole('button', { name: '公共信息 / 目标 +', exact: true }).click();
   await expect(page.locator('.ark-project-art .ark-art-fallback').first()).toBeVisible();
   await expect(page.locator('.ark-map .amenity-label')).toContainText('贩售亭');
   await page.getByRole('button', { name: '选择建造行动', exact: true }).click();

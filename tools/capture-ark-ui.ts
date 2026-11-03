@@ -35,6 +35,9 @@ try {
   await page.waitForLoadState('networkidle');
   await page.screenshot({ path: `${directory}/ark-table.png`, fullPage: true });
   await page.screenshot({ path: `${directory}/ark-table-viewport.png` });
+  await page.getByRole('button', { name: '观察 AI 园区', exact: true }).click();
+  await page.screenshot({ path: `${directory}/ark-observe-ai.png` });
+  await page.getByRole('button', { name: '返回我的园区', exact: true }).click();
   await page.getByTestId('p1-income').hover();
   await page.getByRole('tooltip').waitFor();
   await page.screenshot({ path: `${directory}/ark-income-detail.png` });
@@ -47,6 +50,22 @@ try {
     if (await cards.count()) await cards.first().click();
     else await page.getByTestId('ark-market').locator('.ark-card').first().click();
     await page.screenshot({ path: `${directory}/ark-inspector-${viewport.width}.png` });
+  }
+  const associationSession = createSession(arkGame, {}, 42);
+  let association = associationSession;
+  while (association.state.stage === 'setup') {
+    const actor = arkActor(association.state);
+    const outcome = applyCommand(arkGame, association, { id: `association-capture-${association.state.revision}`, actor, revision: association.state.revision, command: chooseArkCommand(arkGame.getPlayerView(association.state, actor), arkGame.getDecision(association.state, actor)!) });
+    if (!outcome.ok) throw new Error(outcome.error.message);
+    association = outcome.session;
+  }
+  await writeFile(`${directory}/ark-association.replay.json`, exportArchive(association));
+  await page.getByLabel('导入对局文件').setInputFiles(`${directory}/ark-association.replay.json`);
+  await page.getByRole('button', { name: '选择协会行动', exact: true }).click();
+  await page.getByRole('radiogroup', { name: '协会任务', exact: true }).getByRole('radio', { name: '合作动物园', exact: true }).click();
+  for (const viewport of [{ width: 1366, height: 768 }, { width: 1440, height: 900 }, { width: 1920, height: 1080 }]) {
+    await page.setViewportSize(viewport);
+    await page.screenshot({ path: `${directory}/ark-association-${viewport.width}.png` });
   }
   await page.goto('http://127.0.0.1:4173/eurogame-card-engine/#/lobby');
   await page.getByRole('button', { name: /方舟动物园/ }).click();

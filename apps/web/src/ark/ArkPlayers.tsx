@@ -6,7 +6,7 @@ import { useArkGuide } from './ArkGuide.js';
 import { iconSources } from './guide-model.js';
 
 const TAG_ORDER = [...CONTINENTS, 'science', 'water', 'rock', ...ANIMAL_TAGS];
-function PlayerSummary({ player, actor, assets }: { player: ArkView['players'][number]; actor: string; assets: Record<string, string> }) {
+function PlayerSummary({ player, actor, assets, onObserve, observing }: { player: ArkView['players'][number]; actor: string; assets: Record<string, string>; onObserve: (id: string) => void; observing: string | null }) {
   const income = breakIncome(player);
   const tags = tagsOf(player);
   const guide = useArkGuide();
@@ -22,7 +22,7 @@ function PlayerSummary({ player, actor, assets }: { player: ArkView['players'][n
     { name: 'cards', value: player.handCount, detail: `手牌数量；休息上限 ${player.universities.includes('hand') ? 5 : 3}。${player.id === 'p1' ? '' : '对手手牌内容保持隐藏。'}` }
   ];
   return <article className={`ark-player-summary ${player.id} ${actor === player.id ? 'active' : ''}`} aria-label={`${player.id === 'p1' ? '你' : 'AI'}的公开信息`} data-testid={`ark-player-${player.id}`}>
-    <header><ArkHint label={player.name} detail={<><p>地图 {player.map} · {actor === player.id ? '正在行动' : '等待行动'}</p><p>行动槽位（左 → 右）</p>{player.row.map((action, index) => <p key={action}>{index + 1} · {ACTION_NAMES[action]} {player.upgrades.includes(action) ? 'II' : 'I'}</p>)}<small>合作动物园：{player.partners.map(tag => TAG_NAMES[tag]).join('、') || '无'}<br />{player.universities.map(id => UNIVERSITY_NAMES[id]).join('；') || '大学：无'}</small></>}><span className="ark-player-dot" /><strong>{player.id === 'p1' ? '你的动物园' : '林野 AI'}</strong></ArkHint><small>地图 {player.map}{actor === player.id ? ' · 行动中' : ''}</small></header>
+    <header><ArkHint label={player.name} detail={<><p>地图 {player.map} · {actor === player.id ? '正在行动' : '等待行动'}</p><p>行动槽位（左 → 右）</p>{player.row.map((action, index) => <p key={action}>{index + 1} · {ACTION_NAMES[action]} {player.upgrades.includes(action) ? 'II' : 'I'}</p>)}<small>合作动物园：{player.partners.map(tag => TAG_NAMES[tag]).join('、') || '无'}<br />{player.universities.map(id => UNIVERSITY_NAMES[id]).join('；') || '大学：无'}</small></>}><span className="ark-player-dot" /><strong>{player.id === 'p1' ? '你的动物园' : '林野 AI'}</strong></ArkHint><button type="button" className="ark-observe-button" aria-label={player.id === 'p1' ? '返回我的园区' : '观察 AI 园区'} aria-pressed={player.id === 'p1' ? observing === null : observing === player.id} onClick={() => onObserve(player.id)}>{player.id === 'p1' ? '⌂ 我的园区' : '◎ 观察园区'}</button></header>
     <div className="ark-player-metrics">{metrics.map(({ name, value, detail, testId }, index) => <ArkHint key={name} label={`${ICON_NAMES[name] ?? name} ${value}`} detail={detail} className={`${index < 4 ? 'primary-metric' : 'secondary-metric'} ${player.id === 'p1' && guide?.focus?.kind === 'icon' && guide.linkedTags.includes(name) ? 'guide-linked' : ''}`} testId={`${player.id}-${name}`}>
       <ArkIcon name={name} assets={assets} /><b data-testid={testId}>{value}{name === 'money' && player.id === 'p1' ? ' ◈' : ''}</b>
       {name === 'income' && <span className="ark-income-cycle" aria-hidden="true">↻</span>}
@@ -37,6 +37,6 @@ function PlayerSummary({ player, actor, assets }: { player: ArkView['players'][n
   </article>;
 }
 
-export function ArkPlayers({ view, assets }: { view: ArkView; assets: Record<string, string> }) {
-  return <section className="ark-players" aria-label="双方公开信息">{view.players.map(player => <PlayerSummary key={player.id} player={player} actor={view.actor} assets={assets} />)}</section>;
+export function ArkPlayers({ view, assets, onObserve, observing }: { view: ArkView; assets: Record<string, string>; onObserve: (id: string) => void; observing: string | null }) {
+  return <section className="ark-players" aria-label="双方公开信息">{view.players.map(player => <PlayerSummary key={player.id} player={player} actor={view.actor} assets={assets} onObserve={onObserve} observing={observing} />)}</section>;
 }
