@@ -1,0 +1,36 @@
+.active-game-panel { min-height: 0; height: 100%; }
+.active-game-panel[hidden] { display: none !important; }
+.ark-focus .workspace-main { display: flex; flex-direction: column; }
+.ark-focus .active-game-panel { flex: 1; }
+.match-loading { font-size: 12px; padding: 8px; color: #56704a; }
+.match-readonly { display: flex; align-items: center; gap: 8px; padding: 6px 9px; background: #f4e8cc; color: #7c592a; font-size: 11px; flex-shrink: 0; }
+.match-library .page-intro { margin-bottom: 22px; }
+.match-library .page-intro h1 { font: 36px "Songti SC", SimSun, serif; margin: 14px 0; }
+.match-library-tabs { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; }
+.match-library-tabs > button { border: 1px solid #cad8bf; border-radius: 6px; padding: 9px 13px; background: #f8faef; color: #526d4a; font-size: 12px; }
+.match-library-tabs > button[aria-pressed="true"] { background: #e2edda; border-color: #78986a; color: #29553b; }
+.match-library-tabs > a { margin-left: auto; }
+.match-list { display: grid; gap: 10px; }
+.match-row { display: flex; align-items: center; gap: 16px; padding: 18px; }
+.match-symbol { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 8px; background: #e3ecdb; color: #3f6548; font-size: 24px; flex-shrink: 0; }
+.match-row-main { flex: 1; min-width: 0; }
+.match-row-main h2 { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.match-row-main p { font-size: 11px; color: #62735a; margin-top: 7px; }
+.match-row-main > small { display: block; font-size: 10px; color: #88947e; margin-top: 5px; }
+.match-row-main form { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.match-row-main input { font-size: 12px; }
+.match-row-actions { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.match-row-actions .text-button { font-size: 11px; }
+.match-library-empty { padding: 30px; display: flex; justify-content: space-between; color: #637858; font-size: 13px; }
+.match-library-note { margin-top: 20px; font-size: 11px; color: #7e8a73; }
+.lobby-all-matches { display: inline-block; font-size: 12px; color: #4a7153; margin: 0 0 20px; }
+.match-lobby .continue-match { padding: 12px 16px; margin-bottom: 9px; }
+.match-lobby .lobby-intro { padding-top: 13px; padding-bottom: 22px; }
+.match-lobby .game-choice { padding: 17px; }
+.match-lobby .game-choice > .botanical-art, .match-lobby .ark-emblem { height: 94px; }
+.match-lobby .game-choice h3 { font-size: 25px; }
+.match-lobby .game-choice p { line-height: 1.75; }
+.match-library .page-intro { padding-top: 8px; margin-bottom: 18px; }
+.match-library .page-intro h1 { margin: 10px 0; }
+.match-library .page-intro p { line-height: 1.7; }
+@media (max-width: 1000px) { .match-row { flex-wrap: wrap; } .match-row-actions { width: 100%; justify-content: end; } }

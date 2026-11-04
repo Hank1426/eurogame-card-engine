@@ -30,7 +30,7 @@ import './ark-experience.css';
 import './ark-information.css';
 import './ark-console.css';
 
-export function ArkTable({ session, onSessionChange }: { session: ArkSession; onSessionChange: Dispatch<SetStateAction<ArkSession | null>> }) {
+export function ArkTable({ session, onSessionChange, active = true, readOnly: externalReadOnly = false }: { session: ArkSession; onSessionChange: Dispatch<SetStateAction<ArkSession | null>>; active?: boolean; readOnly?: boolean }) {
   const art = useArkAssets();
   const assets = art.urls;
   const [selected, setSelected] = useState<{ id: string; source: 'hand' | 'market' | 'tableau' } | null>(null);
@@ -64,7 +64,7 @@ export function ArkTable({ session, onSessionChange }: { session: ArkSession; on
   const player = view.players[0]!;
   const actor = view.actor;
   const aiTurn = actor !== 'p1' && view.phase !== 'finished';
-  const readOnly = aiTurn || replayRevision !== null || view.phase === 'finished' || observing !== null;
+  const readOnly = externalReadOnly || !active || aiTurn || replayRevision !== null || view.phase === 'finished' || observing !== null;
   const mapPlayer = view.players.find(candidate => candidate.id === observing) ?? player;
   const context = view.context;
   const decision = useMemo(() => arkGame.getDecision(displayed.state, 'p1'), [displayed]);
@@ -142,7 +142,7 @@ export function ArkTable({ session, onSessionChange }: { session: ArkSession; on
   useEffect(() => { setChoiceSelection([]); }, [view.pending?.id]);
   useEffect(() => { dismissArkHint(); }, [view.revision, observing]);
   useEffect(() => {
-    if (replayRevision !== null || session.state.phase === 'finished' || arkActor(session.state) === 'p1' || aiFailureRevision === session.state.revision) return;
+    if (!active || externalReadOnly || replayRevision !== null || session.state.phase === 'finished' || arkActor(session.state) === 'p1' || aiFailureRevision === session.state.revision) return;
     const timer = setTimeout(() => {
       try {
         const actor = arkActor(session.state);
@@ -158,7 +158,7 @@ export function ArkTable({ session, onSessionChange }: { session: ArkSession; on
       }
     }, 450);
     return () => clearTimeout(timer);
-  }, [session, replayRevision, aiFailureRevision, onSessionChange]);
+  }, [session, active, externalReadOnly, replayRevision, aiFailureRevision, onSessionChange]);
 
   function send(command: ArkCommand) {
     if (readOnly) return;
